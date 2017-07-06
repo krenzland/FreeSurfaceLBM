@@ -1,0 +1,29 @@
+# Settings for simulation
+xlength                         2
+ylength                         2
+zlength                         4
+
+timesteps                       10
+timestepsPerPlotting            1
+tau                             0.6
+
+# Boundary Conditions
+bcLeft                          NO_SLIP
+bcRight                         NO_SLIP
+bcTop                           NO_SLIP
+bcBottom                        NO_SLIP
+bcFront                         INFLOW
+bcBack                          OUTFLOW
+
+# Settings for scenarios
+scenario                        scenarios/empty
+
+velocityWallX                   0.0
+velocityWallY                   0.0
+velocityWallZ                   0.0
+
+velocityInX                     0.0
+velocityInY                     0.0
+velocityInZ                     0.05
+
+pressureIn                      1.000

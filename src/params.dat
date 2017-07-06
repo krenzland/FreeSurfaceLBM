@@ -1,0 +1,33 @@
+# Settings for simulation
+xlength                         40
+ylength                         40
+zlength                         40
+
+xprocs				2
+yprocs				1
+zprocs				1 # ....
+
+timesteps                       100   
+timestepsPerPlotting            10
+tau                             0.7 # kjkl
+
+# Boundary Conditions
+bcLeft                          MOVING_WALL
+bcRight                         NO_SLIP
+bcTop                           NO_SLIP
+bcBottom                        NO_SLIP
+bcFront                         NO_SLIP
+bcBack                          NO_SLIP
+
+# Settings for scenarios
+scenario                        scenarios/empty
+
+velocityWallX                   0.0
+velocityWallY                   0.05
+velocityWallZ                   0.05
+
+velocityInX                     0.0
+velocityInY                     0.0
+velocityInZ                     0.0
+
+pressureIn                      1.000
