@@ -11,6 +11,7 @@ set(sources
         computeCellValues.cpp
         computeCellValues.hpp
         ConfigParser.hpp
+        freeSurface.hpp
         initLB.cpp
         initLB.hpp
         LBDefinitions.hpp
@@ -23,7 +24,7 @@ set(sources
         LBMHelper.cpp
         ConfigParser.hpp
         VtkWriter.cpp
-        VtkWriter.hpp)
+        VtkWriter.hpp freeSurface.cpp)
 
 find_package(MPI REQUIRED)
 include_directories(SYSTEM ${MPI_CXX_INCLUDE_PATH})

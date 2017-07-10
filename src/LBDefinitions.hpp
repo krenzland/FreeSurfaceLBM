@@ -7,6 +7,27 @@
 
 using coord_t = std::array<int, 3>;
 
+// Hash function for our coord_type.
+namespace std
+{
+    template<> struct hash<coord_t>
+    {
+        using argument_type = coord_t;
+        using result_type = size_t;
+        result_type operator()(argument_type const& c) const
+        {
+            // We need to combine the hashes, this uses the algorithm used by boost's hash_combine.
+            // See e.g. http://www.boost.org/doc/libs/1_35_0/doc/html/boost/hash_combine_id241013.html
+            result_type h = 0;
+            for (const auto i : c){
+                // Black magic.
+                h ^= std::hash<int>{}(i) + 0x9e3779b9 + (h << 6) + (h >> 2);
+            }
+            return h;
+        }
+    };
+}
+
 enum class flag_t {
     FLUID = 0,
     NO_SLIP = 1,
@@ -16,6 +37,8 @@ enum class flag_t {
     OUTFLOW = 5,
     PRESSURE_IN = 6,
     PARALLEL_BOUNDARY = 7,
+    EMPTY = 8,
+    INTERFACE = 9,
 };
 
 // This is needed to parse the config file.
@@ -41,10 +64,10 @@ struct boundary_t {
     double pressureIn;
 };
 
-static const int LATTICEVELOCITIES[19][3] = {
+static const std::array<std::array<int, 3>, 19> LATTICEVELOCITIES = {{
     {0, -1, -1}, {-1, 0, -1}, {0, 0, -1}, {1, 0, -1}, {0, 1, -1}, {-1, -1, 0}, {0, -1, 0},
     {1, -1, 0},  {-1, 0, 0},  {0, 0, 0},  {1, 0, 0},  {-1, 1, 0}, {0, 1, 0},   {1, 1, 0},
-    {0, -1, 1},  {-1, 0, 1},  {0, 0, 1},  {1, 0, 1},  {0, 1, 1}};
+    {0, -1, 1},  {-1, 0, 1},  {0, 0, 1},  {1, 0, 1},  {0, 1, 1}}};
 
 static const double LATTICEWEIGHTS[19] = {(1. / 36), (1. / 36), (2. / 36), (1. / 36), (1. / 36),
                                           (1. / 36), (2. / 36), (1. / 36), (2. / 36), (12. / 36),

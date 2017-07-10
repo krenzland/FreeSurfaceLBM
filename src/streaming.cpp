@@ -7,7 +7,7 @@ int neighbouring_fi_cell_index(int x, int y, int z, int fi, const coord_t &lengt
     int new_y = y - LATTICEVELOCITIES[fi][1];
     int new_z = z - LATTICEVELOCITIES[fi][2];
 
-    return indexForCell(new_x, new_y, new_z, length) * Q;
+    return indexForCell(new_x, new_y, new_z, length);
 }
 
 void doStreaming(const std::vector<double> &collideField, std::vector<double> &streamField,
@@ -21,7 +21,7 @@ void doStreaming(const std::vector<double> &collideField, std::vector<double> &s
 
                 const int field_index = flag_index * Q;
                 for (int i = 0; i < Q; ++i) {
-                    const int neighbour = neighbouring_fi_cell_index(x, y, z, i, length);
+                    const int neighbour = neighbouring_fi_cell_index(x, y, z, i, length) * Q;
                     assert(neighbour % Q == 0); // Make sure it points to the start of a cell.
                     streamField[field_index + i] = collideField[neighbour + i];
 

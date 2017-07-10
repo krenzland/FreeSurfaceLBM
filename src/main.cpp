@@ -5,6 +5,7 @@
 #include "mpi.h"
 #include "parallel.hpp"
 #include "streaming.hpp"
+#include "freeSurface.hpp"
 #include <cassert>
 
 /***
@@ -25,6 +26,7 @@ int main(int argc, char *argv[]) {
 
     int rank, noRanks;
     initializeMPI(rank, noRanks, argc, &argv);
+    assert(noRanks == 1); // TODO: Support MPI!
     std::cout << "Rank=" << rank << " of size " << noRanks << " initialised." << std::endl;
     const double startTime = MPI_Wtime();
 
@@ -72,11 +74,15 @@ int main(int argc, char *argv[]) {
     initialiseCollideAndStreamFields(collideField, streamField);
     initialiseFlagField(flagField, scenario.c_str(), length, offset, ourCoords, procs,
                         boundaryConditions, verbose);
+    auto mass = std::vector<double>(num_cells); // TODO: Extract to function and initialise properly!
 
     auto writer = VtkWriter("results/output", length, realLength, offset, ourCoords);
     writer.write(collideField, flagField, 0);
 
     for (int t = 1; t < timesteps; ++t) {
+        auto filled = gridSet_t();
+        auto emptied = gridSet_t();
+
         for (int i = 0; i < 6; ++i) {
             if (neighborsIdx[i] != MPI_PROC_NULL) {
                 extract(i, collideField, flagField, bufferOut[i], length);
@@ -84,9 +90,12 @@ int main(int argc, char *argv[]) {
                 inject(i, collideField, flagField, bufferIn[i], length);
             }
         }
+        streamMass(collideField, flagField, mass, length); // Maybe do after normal streaming?
         doStreaming(collideField, streamField, flagField, length);
         std::swap(collideField, streamField);
-        doCollision(collideField, flagField, tau);
+        // TODO: Reconstruct boundaries for interface cells.
+        doCollision(collideField, mass, flagField, tau, length, filled, emptied);
+        flagReinit(mass, flagField, filled, emptied, length); // TODO: Finish implementation!
         treatBoundary(collideField, flagField, boundaryConditions, length);
 
         if (!(t % timestepsPerPlotting)) {

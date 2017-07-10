@@ -88,7 +88,7 @@ void singleNoSlip(std::vector<double> &collideField, const std::vector<flag_t> &
     // If they point into a cell that is not accessible, ignore this velocity.
     // Otherwise, we update it to reflect the boundary condition.
     for (int i = 0; i < Q; ++i) {
-        const int *vel = LATTICEVELOCITIES[i];
+        const auto &vel = LATTICEVELOCITIES[i];
         const int nX = x + vel[0];
         const int nY = y + vel[1];
         const int nZ = z + vel[2];
@@ -132,7 +132,7 @@ void singleOutflow(std::vector<double> &collideField, double refDensity, int x, 
     double incVel[3] = {0.0};
     double incDensity = 0.0;
     for (int i = 0; i < Q; ++i) {
-        const int *vel = LATTICEVELOCITIES[i];
+        const auto &vel = LATTICEVELOCITIES[i];
         const int nX = x + vel[0];
         const int nY = y + vel[1];
         const int nZ = z + vel[2];
@@ -162,7 +162,8 @@ void treatBoundary(std::vector<double> &collideField, const std::vector<flag_t> 
                 const flag_t type = flagField[flagIndex];
                 switch (type) {
                 case flag_t::FLUID:
-                    break;
+                case flag_t::EMPTY:
+                case flag_t::INTERFACE:
                 case flag_t::PARALLEL_BOUNDARY:
                     break;
                 case flag_t::NO_SLIP:
