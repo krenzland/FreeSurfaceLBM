@@ -1,5 +1,6 @@
 #include "streaming.hpp"
 #include "LBMHelper.hpp"
+#include "freeSurface.hpp"
 #include <assert.h>
 
 int neighbouring_fi_cell_index(int x, int y, int z, int fi, const coord_t &length) {
@@ -11,21 +12,54 @@ int neighbouring_fi_cell_index(int x, int y, int z, int fi, const coord_t &lengt
 }
 
 void doStreaming(const std::vector<double> &collideField, std::vector<double> &streamField,
-                 const std::vector<flag_t> &flagField, const coord_t &length) {
+                 const std::vector<double> &mass, const std::vector<flag_t> &flagField,
+                 const coord_t &length) {
     for (int z = 0; z < length[2] + 2; ++z) {
         for (int y = 0; y < length[1] + 2; ++y) {
             for (int x = 0; x < length[0] + 2; ++x) {
-                const int flag_index = indexForCell(x, y, z, length);
-                if (flagField[flag_index] != flag_t::FLUID)
-                    continue;
+                const int flagIndex = indexForCell(x, y, z, length);
+                const int fieldIndex = flagIndex * Q;
+                if (flagField[flagIndex] == flag_t::FLUID) {
+                    // This is the easy case. Just copy the distributions from all neighbours.
+                    for (int i = 0; i < Q; ++i) {
+                        const int neighbour = neighbouring_fi_cell_index(x, y, z, i, length) * Q;
+                        streamField[fieldIndex + i] = collideField[neighbour + i];
 
-                const int field_index = flag_index * Q;
-                for (int i = 0; i < Q; ++i) {
-                    const int neighbour = neighbouring_fi_cell_index(x, y, z, i, length) * Q;
-                    assert(neighbour % Q == 0); // Make sure it points to the start of a cell.
-                    streamField[field_index + i] = collideField[neighbour + i];
+                        assert(streamField[fieldIndex + i] >= 0.0);
+                    }
+                } else if (flagField[flagIndex] == flag_t::INTERFACE) {
+                    // This case is a bit more tedious, for two reasons:
+                    // 1. Interface cells have empty cells, with no valid distributions.
+                    // 2. To preserve balance, we need to reconstruct distributions along the
+                    // interface-normal.
+                    const auto coord = coord_t{x, y, z};
+                    const auto normal = computeSurfaceNormal(collideField, mass, coord, length);
+                    for (int i = 0; i < Q; ++i) {
+                        const int neighbourFlag = neighbouring_fi_cell_index(x, y, z, i, length);
+                        const int neighbourDistr = neighbourFlag * Q;
 
-                    assert(streamField[field_index + i] >= 0.0);
+                        const auto &invVelocity = LATTICEVELOCITIES[inverseVelocityIndex(i)];
+
+                        const double dotProduct = normal[0] * invVelocity[0] +
+                                                  normal[1] * invVelocity[1] +
+                                                  normal[2] * invVelocity[2];
+                        const bool isNormalDirection = dotProduct > 0.0;
+
+                        if (flagField[neighbourFlag] == flag_t::EMPTY || isNormalDirection) {
+                            // We need to reconstruct this distribution with eq. (4.5).
+                            // const double atmosphericPressure = 1.0;
+                            // TODO: Calculate correct velocity here.
+                            const std::array<double, 3> neighVelocity();
+                            streamField[fieldIndex + i] =
+                                0.0; // TODO: Formula (4.5), don't forget to revere all directions!
+
+                        } else {
+                            // Distribution is valid and not needed for balancing -> normal
+                            // streaming.
+                            streamField[fieldIndex + i] = collideField[neighbourDistr + i];
+                            assert(streamField[fieldIndex + i] >= 0.0);
+                        }
+                    }
                 }
             }
         }

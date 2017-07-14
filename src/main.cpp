@@ -1,11 +1,11 @@
 #include "VtkWriter.hpp"
 #include "boundary.hpp"
 #include "collision.hpp"
+#include "freeSurface.hpp"
 #include "initLB.hpp"
 #include "mpi.h"
 #include "parallel.hpp"
 #include "streaming.hpp"
-#include "freeSurface.hpp"
 #include <cassert>
 
 /***
@@ -74,7 +74,8 @@ int main(int argc, char *argv[]) {
     initialiseCollideAndStreamFields(collideField, streamField);
     initialiseFlagField(flagField, scenario.c_str(), length, offset, ourCoords, procs,
                         boundaryConditions, verbose);
-    auto mass = std::vector<double>(num_cells); // TODO: Extract to function and initialise properly!
+    auto mass =
+        std::vector<double>(num_cells); // TODO: Extract to function and initialise properly!
 
     auto writer = VtkWriter("results/output", length, realLength, offset, ourCoords);
     writer.write(collideField, flagField, 0);
@@ -91,11 +92,12 @@ int main(int argc, char *argv[]) {
             }
         }
         streamMass(collideField, flagField, mass, length); // Maybe do after normal streaming?
-        doStreaming(collideField, streamField, flagField, length);
+        doStreaming(collideField, streamField, mass, flagField, length);
         std::swap(collideField, streamField);
         // TODO: Reconstruct boundaries for interface cells.
         doCollision(collideField, mass, flagField, tau, length, filled, emptied);
-        flagReinit(mass, flagField, filled, emptied, length); // TODO: Finish implementation!
+        flagReinit(collideField, mass, flagField, filled, emptied,
+                   length); // TODO: Finish implementation!
         treatBoundary(collideField, flagField, boundaryConditions, length);
 
         if (!(t % timestepsPerPlotting)) {
