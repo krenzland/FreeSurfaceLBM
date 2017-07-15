@@ -28,4 +28,7 @@ void flagReinit(std::vector<double> distributions, std::vector<double> &mass,
                 std::vector<flag_t> &flags, gridSet_t &filled, gridSet_t &emptied,
                 const coord_t &length);
 
+void distributeMass(const std::vector<double> &distributions, std::vector<double> &mass,
+                    std::vector<flag_t> &flags, gridSet_t &filled, gridSet_t &emptied,
+                    const coord_t &length);
 #endif // CFD_LAB_FREESURFACE_HPP

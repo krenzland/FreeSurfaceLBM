@@ -21,6 +21,10 @@ int indexForCell(int x, int y, int z, const coord_t &length) {
     return (length[0] + 2) * (length[1] + 2) * z + (length[0] + 2) * y + x;
 }
 
+int indexForCell(const coord_t &coord, const coord_t &length) {
+    return indexForCell(coord[0], coord[1], coord[2], length);
+}
+
 int inverseVelocityIndex(int index) {
     assert(index >= 0 && index < Q);
     return (Q - 1) - index;

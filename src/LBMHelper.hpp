@@ -9,6 +9,8 @@
 
 int indexForCell(int x, int y, int z, int *length);
 int indexForCell(int x, int y, int z, const coord_t &length);
+int indexForCell(const coord_t &coord, const coord_t &length);
+
 int inverseVelocityIndex(int index);
 
 #endif // SOURCE_LBMHELPER_H

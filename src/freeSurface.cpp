@@ -1,11 +1,12 @@
 #include "freeSurface.hpp"
+#include <numeric>
 
 std::array<double, 3> computeSurfaceNormal(const std::vector<double> &distributions,
                                            const std::vector<double> &mass, const coord_t &position,
                                            const coord_t &length) {
     auto normal = std::array<double, 3>();
     // We approximate the surface normal element-wise using central-differences of the fluid
-    // fraction.
+    // fraction gradient.
     for (size_t dim = 0; dim < normal.size(); ++dim) {
         auto curPosition = position;
 
@@ -109,7 +110,7 @@ void interpolateEmptyCell(std::vector<double> &distributions, const std::vector<
             }
 
             // Every empty cell has at least one interface cell as neighbour, otherwise we have a
-            // worse problem than divison by zero.
+            // worse problem than division by zero.
             assert(numNeighs != 0);
             avgDensity /= numNeighs;
             avgVel[0] /= numNeighs;
@@ -146,8 +147,7 @@ void flagReinit(std::vector<double> distributions, std::vector<double> &mass,
             neighbor[2] += vel[2];
             const auto neighFlag = indexForCell(neighbor[0], neighbor[1], neighbor[2], length);
             // This neighbor is converted to an interface cell iff. it is an empty cell or a cell
-            // that would become an
-            // emptied cell.
+            // that would become an emptied cell.
             // We need to remove it from the emptied set, otherwise we might have holes in the
             // interface.
             if (flags[neighFlag] == flag_t::EMPTY) {
@@ -196,5 +196,94 @@ void flagReinit(std::vector<double> distributions, std::vector<double> &mass,
     // Now we can interpolate the distributions for the new interface cells that have been former
     // empty cells.
     interpolateEmptyCell(distributions, flags, toBalance, length);
-    // TODO: Mass conservation!
+}
+
+// TODO: Find better name for this!
+enum class update_t { FILLED, EMPTIED };
+
+void distributeSingleMass(const std::vector<double> &distributions, std::vector<double> &mass,
+                          std::vector<flag_t> &flags, const update_t &type, const coord_t &length,
+                          const coord_t &coord) {
+    // First determine how much mass needs to be redistributed and fix mass of converted cell.
+    const int flagIndex = indexForCell(coord, length);
+    double excessMass;
+    if (type == update_t::FILLED) {
+        const double density = computeDensity(&distributions[flagIndex * Q]);
+        // Interface -> Full cell, filled cells have mass and should have a mass equal to their
+        // density.
+        excessMass = mass[flagIndex] - density;
+        mass[flagIndex] = density;
+    } else {
+        // Interface -> Empty cell, empty cells should not have any mass so all mass is excess mass.
+        excessMass = mass[flagIndex];
+        mass[flagIndex] = 0.0;
+    }
+
+    /* The distribution of excess mass is surprisingly non-trivial.
+       For a more detailed description, refer to pages 32f. of Thürey's thesis but here's the gist:
+       We do not distribute the mass uniformly to all neighbouring interface cells but rather
+       correct for balance.
+       The reason for this is that the fluid interface moved beyond the current cell.
+       We rebalance things by weighting the mass updates according to the direction of the interface
+       normal.
+       This has to be done in two steps, we first calculate all update weights, normalize them and
+       then, in a second step update the weights.*/
+
+    // Step 1: Calculate the unnormalized weights.
+    const auto normal = computeSurfaceNormal(distributions, mass, coord, length);
+    std::array<double, 19> weights;
+
+    for (size_t i = 0; i < LATTICEVELOCITIES.size(); ++i) {
+        const auto &vel = LATTICEVELOCITIES[i];
+        coord_t neighbor = coord;
+        neighbor[0] += vel[0];
+        neighbor[1] += vel[1];
+        neighbor[2] += vel[2];
+
+        const int neighFlag = indexForCell(neighbor, length);
+        if (flags[neighFlag] != flag_t::INTERFACE)
+            continue;
+
+        const double dotProduct = normal[0] * vel[0] + normal[1] * vel[1] + normal[2] * vel[2];
+        if (type == update_t::FILLED) {
+            weights[i] = dotProduct > 0 ? dotProduct : 0;
+        } else {
+            weights[i] = dotProduct < 0 ? -dotProduct : 0;
+        }
+    }
+
+    // Step 2: Calculate normalizer (otherwise sum of weights != 1.0)
+    const double normalizer =
+        std::accumulate(weights.begin(), weights.end(), 0.0, std::plus<double>());
+
+    // Step 3: Redistribute weights. As non-interface cells have weight 0, we can just loop through
+    // all cells.
+    for (size_t i = 0; i < LATTICEVELOCITIES.size(); ++i) {
+        const auto &vel = LATTICEVELOCITIES[i];
+        coord_t neighbor = coord;
+        neighbor[0] += vel[0];
+        neighbor[1] += vel[1];
+        neighbor[2] += vel[2];
+
+        const int neighFlag = indexForCell(neighbor, length);
+        mass[neighFlag] += (weights[i] / normalizer) * excessMass;
+    }
+}
+
+void distributeMass(const std::vector<double> &distributions, std::vector<double> &mass,
+                    std::vector<flag_t> &flags, gridSet_t &filled, gridSet_t &emptied,
+                    const coord_t &length) {
+    // Here we redistribute the excess mass of the cells.
+    // It is important that we get a copy of the filled/emptied where all converted cells are stored
+    // and no other cells.
+    // Watch out for cells that are not actually emptied but rather are new interface cells!
+    // TODO: Implement this! (otherwise filled/emptied are empty sets and this method would do
+    // literally nothing!)
+
+    for (auto &&coord : filled) {
+        distributeSingleMass(distributions, mass, flags, update_t::FILLED, length, coord);
+    }
+    for (auto &&coord : emptied) {
+        distributeSingleMass(distributions, mass, flags, update_t::EMPTIED, length, coord);
+    }
 }
