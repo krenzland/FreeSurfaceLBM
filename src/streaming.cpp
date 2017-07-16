@@ -19,27 +19,32 @@ void doStreaming(const std::vector<double> &collideField, std::vector<double> &s
             for (int x = 0; x < length[0] + 2; ++x) {
                 const int flagIndex = indexForCell(x, y, z, length);
                 const int fieldIndex = flagIndex * Q;
-                if (flagField[flagIndex] == flag_t::FLUID) {
-                    // This is the easy case. Just copy the distributions from all neighbours.
+                if (flagField[flagIndex] == flag_t::FLUID ||
+                    flagField[flagIndex] == flag_t::INTERFACE) {
+                    // Standard streaming step.
                     for (int i = 0; i < Q; ++i) {
                         const int neighbour = neighbouring_fi_cell_index(x, y, z, i, length) * Q;
                         streamField[fieldIndex + i] = collideField[neighbour + i];
 
                         assert(streamField[fieldIndex + i] >= 0.0);
                     }
-                } else if (flagField[flagIndex] == flag_t::INTERFACE) {
-                    // This case is a bit more tedious, for two reasons:
+                }
+                if (flagField[flagIndex] == flag_t::INTERFACE) {
+                    // For interface cells we have to do some things differently.
+                    // The second pass over the distributions makes things easier.
+                    // We need to deal with the following things:
                     // 1. Interface cells have empty cells, with no valid distributions.
                     // 2. To preserve balance, we need to reconstruct distributions along the
                     // interface-normal.
                     const auto coord = coord_t{x, y, z};
                     const auto normal = computeSurfaceNormal(collideField, mass, coord, length);
+
                     for (int i = 0; i < Q; ++i) {
                         const int neighbourFlag = neighbouring_fi_cell_index(x, y, z, i, length);
                         const int neighbourDistr = neighbourFlag * Q;
 
-                        const auto &invVelocity = LATTICEVELOCITIES[inverseVelocityIndex(i)];
-
+                        const int inv = inverseVelocityIndex(i);
+                        const auto &invVelocity = LATTICEVELOCITIES[inv];
                         const double dotProduct = normal[0] * invVelocity[0] +
                                                   normal[1] * invVelocity[1] +
                                                   normal[2] * invVelocity[2];
@@ -47,17 +52,24 @@ void doStreaming(const std::vector<double> &collideField, std::vector<double> &s
 
                         if (flagField[neighbourFlag] == flag_t::EMPTY || isNormalDirection) {
                             // We need to reconstruct this distribution with eq. (4.5).
-                            // const double atmosphericPressure = 1.0;
-                            // TODO: Calculate correct velocity here.
-                            const std::array<double, 3> neighVelocity();
-                            streamField[fieldIndex + i] =
-                                0.0; // TODO: Formula (4.5), don't forget to revere all directions!
+                            const double atmosphericPressure = 1.0;
+                            // Note that we have to calculate the velocity of the time step before,
+                            // hence the choice
+                            // of distribution field.
+                            const double neighDensity =
+                                computeDensity(&collideField[neighbourDistr]);
+                            std::array<double, 3> neighVelocity;
+                            computeVelocity(&collideField[neighbourDistr], neighDensity,
+                                            neighVelocity.data());
+                            std::array<double, 19> neighFeq;
+                            computeFeq(atmosphericPressure, neighVelocity.data(), neighFeq.data());
 
-                        } else {
-                            // Distribution is valid and not needed for balancing -> normal
-                            // streaming.
-                            streamField[fieldIndex + i] = collideField[neighbourDistr + i];
-                            assert(streamField[fieldIndex + i] >= 0.0);
+                            // The paper uses a push-stream step, we use a pull-stream step.
+                            // This is why we invert all fluid directions.
+                            // TODO: Verify this claim and generally the correctness of the
+                            // reconstruction.
+                            streamField[fieldIndex + i] =
+                                neighFeq[inv] + neighFeq[i] - collideField[inv];
                         }
                     }
                 }
