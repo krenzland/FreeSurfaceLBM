@@ -21,7 +21,7 @@ void doCollision(std::vector<double> &distributions, const std::vector<double> &
         for (int y = 0; y < length[1] + 2; ++y) {
             for (int x = 0; x < length[0] + 2; ++x) {
                 const int flagIndex = indexForCell(x, y, z, length);
-                if (flagField[flagIndex] != flag_t::FLUID ||
+                if (flagField[flagIndex] != flag_t::FLUID &&
                     flagField[flagIndex] != flag_t::INTERFACE)
                     continue;
 
