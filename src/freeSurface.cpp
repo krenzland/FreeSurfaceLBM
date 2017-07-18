@@ -136,11 +136,8 @@ void flagReinit(std::vector<double> distributions, std::vector<double> &mass,
     // TODO: Do we need to do this? Not sure...
     auto toBalance = std::vector<coord_t>();
 
-    while (filled.size() > 0) {
-        const auto &it = filled.begin();
-        const auto &elem = *it;
+    for (const auto& elem : filled) {
         // Find all neighbours of this cell.
-
         for (const auto &vel : LATTICEVELOCITIES) {
             coord_t neighbor = elem;
             neighbor[0] += vel[0];
@@ -165,17 +162,13 @@ void flagReinit(std::vector<double> distributions, std::vector<double> &mass,
             // Note: Only interface cells that are not going to be emptied should be considered!
             toBalance.emplace_back(neighbor);
         }
-        // Now we can convert the cell it self to a fluid cell.
+        // Now we can convert the cell itself to a fluid cell.
         const auto curFlag = indexForCell(elem[0], elem[1], elem[2], length);
         flags[curFlag] = flag_t::FLUID;
-
-        filled.erase(it);
     }
 
     // Secondly we consider all emptied cells that are not needed as interface cells.
-    while (emptied.size() > 0) {
-        const auto &it = filled.begin();
-        const auto &elem = *it;
+    for (auto &elem : filled) {
         // Convert all neighbours to interface cells.
         for (const auto &vel : LATTICEVELOCITIES) {
             coord_t neighbor = elem;
@@ -190,8 +183,6 @@ void flagReinit(std::vector<double> distributions, std::vector<double> &mass,
         }
         const auto curFlag = indexForCell(elem[0], elem[1], elem[2], length);
         flags[curFlag] = flag_t::EMPTY;
-
-        emptied.erase(it);
     }
 
     // Now we can interpolate the distributions for the new interface cells that have been former
@@ -277,9 +268,7 @@ void distributeMass(const std::vector<double> &distributions, std::vector<double
     // Here we redistribute the excess mass of the cells.
     // It is important that we get a copy of the filled/emptied where all converted cells are stored
     // and no other cells.
-    // Watch out for cells that are not actually emptied but rather are new interface cells!
-    // TODO: Implement this! (otherwise filled/emptied are empty sets and this method would do
-    // literally nothing!)
+    // This excludes emptied cells that are used as interface cells instead!
 
     for (auto &&coord : filled) {
         distributeSingleMass(distributions, mass, flags, update_t::FILLED, length, coord);

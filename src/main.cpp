@@ -98,7 +98,7 @@ int main(int argc, char *argv[]) {
         doCollision(collideField, mass, flagField, tau, length, filled, emptied);
         flagReinit(collideField, mass, flagField, filled, emptied,
                    length); // TODO: Finish implementation!
-        // TODO: Call update mass!
+        distributeMass(collideField, mass, flagField, filled, emptied, length);
         treatBoundary(collideField, flagField, boundaryConditions, length);
 
         if (!(t % timestepsPerPlotting)) {
