@@ -2,6 +2,7 @@
 #include "initLB.hpp"
 #include "ConfigParser.hpp"
 #include "LBMHelper.hpp"
+#include "freeSurface.hpp"
 
 boundary_t readBoundaryConditions(ConfigParser &config) {
     boundary_t bc;
@@ -65,6 +66,18 @@ void setBoundaryFlag(std::vector<flag_t> &flagField, int x, int y, int z, const 
 void initialiseFlagField(std::vector<flag_t> &flagField, const char *geometryFile,
                          const coord_t &length, const coord_t &offset, const coord_t coord,
                          const coord_t procs, boundary_t &boundaryConditions, bool verbose) {
+    // TODO: Remove hardcoded dam break thingy and read from file.
+    // Scenario: Dam break. A third of the size of the geometry is filled with water, the other one not.
+    // Note: The water isn't moving yet, might want to initialise differently!
+    // TODO: Maybe initialise with velocity for dam break.
+    for (int z = 1; z < length[2] + 1; ++z) {
+        for (int y = 1; y < length[1] + 1; ++y) {
+            for (int x = 2 * length[0]/3; x < length[0] + 1; ++x) {
+                flagField[indexForCell(x,y,z, length)] = flag_t::EMPTY;
+            }
+        }
+    }
+
     // We surround our entire geometry with a real boundary layer.
     for (int z = 0; z < length[2] + 2; ++z) {
         for (int y = 0; y < length[1] + 2; ++y) {
@@ -108,4 +121,43 @@ void initialiseFlagField(std::vector<flag_t> &flagField, const char *geometryFil
             }
         }
     }
+}
+
+void initialiseInterface(std::vector<double> distributions, std::vector<double> &mass, std::vector<flag_t> &flags,
+                         const coord_t &length) {
+    // Idea: Treat all empty cells as recently emptied cells and let the free surface code deal with it.
+    // While it works, it is pretty slow. It is fast enough because it happens only for the first time step and is in
+    // linear time to the number of empty cells.
+    auto emptied = gridSet_t();
+    for (int z = 0; z < length[2] + 2; ++z) {
+        for (int y = 0; y < length[1] + 2; ++y) {
+            for (int x = 0; x < length[0] + 2; ++x) {
+                const auto coord = coord_t{x,y,z};
+                const int flagIndex = indexForCell(coord, length);
+                if (flags[flagIndex] == flag_t::EMPTY) {
+                    flags[flagIndex] = flag_t::INTERFACE;
+                    emptied.insert(coord);
+                }
+            }
+        }
+    }
+    auto filled = gridSet_t(); // We have no recently filled cells.
+    flagReinit(distributions, mass, flags, filled, emptied, length);
+}
+
+std::vector<double> initialiseMassField(std::vector<flag_t> &flags, const coord_t &length) {
+    auto mass = std::vector<double>(flags.size());
+
+    // Set mass for empty cells to zero, for fluid cells to the density.
+    // Interface cells are generated seperately so need no special case.
+    // Boundary cells are treated as empty cells, the mass shouldn't matter anyway.
+    for(size_t i = 0; i < flags.size(); ++i) {
+        if (flags[i] == flag_t::FLUID) {
+            // Density in first timestep is 1 for fluid cells.
+            mass[i] = 1.0;
+        } else {
+            mass[i] = 0.0;
+        }
+    }
+    return mass;
 }

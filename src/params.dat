@@ -3,17 +3,17 @@ xlength                         40
 ylength                         40
 zlength                         40
 
-xprocs				2
+xprocs				1
 yprocs				1
 zprocs				1 # ....
 
-timesteps                       100   
-timestepsPerPlotting            10
+timesteps                       1000
+timestepsPerPlotting            100
 tau                             0.7 # kjkl
 
 # Boundary Conditions
-bcLeft                          MOVING_WALL
-bcRight                         NO_SLIP
+bcLeft                          NO_SLIP
+bcRight                         MOVING_WALL
 bcTop                           NO_SLIP
 bcBottom                        NO_SLIP
 bcFront                         NO_SLIP

@@ -1,5 +1,6 @@
 #include "freeSurface.hpp"
 #include <numeric>
+#include <iostream>
 
 std::array<double, 3> computeSurfaceNormal(const std::vector<double> &distributions,
                                            const std::vector<double> &mass, const coord_t &position,
@@ -163,25 +164,25 @@ void flagReinit(std::vector<double> distributions, std::vector<double> &mass,
             toBalance.emplace_back(neighbor);
         }
         // Now we can convert the cell itself to a fluid cell.
-        const auto curFlag = indexForCell(elem[0], elem[1], elem[2], length);
+        const auto curFlag = indexForCell(elem, length);
         flags[curFlag] = flag_t::FLUID;
     }
 
     // Secondly we consider all emptied cells that are not needed as interface cells.
-    for (auto &elem : filled) {
+    for (auto &elem : emptied) {
         // Convert all neighbours to interface cells.
         for (const auto &vel : LATTICEVELOCITIES) {
             coord_t neighbor = elem;
             neighbor[0] += vel[0];
             neighbor[1] += vel[1];
             neighbor[2] += vel[2];
-            const auto neighFlag = indexForCell(neighbor[0], neighbor[1], neighbor[2], length);
+            const auto neighFlag = indexForCell(neighbor, length);
             if (flags[neighFlag] == flag_t::FLUID) {
                 flags[neighFlag] = flag_t::INTERFACE;
                 // We can reuse the distributions as they are still valid.
             }
         }
-        const auto curFlag = indexForCell(elem[0], elem[1], elem[2], length);
+        const auto curFlag = indexForCell(elem, length);
         flags[curFlag] = flag_t::EMPTY;
     }
 

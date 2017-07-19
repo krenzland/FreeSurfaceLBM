@@ -17,8 +17,6 @@ std::array<double, 3> computeSurfaceNormal(const std::vector<double> &distributi
 void streamMass(const std::vector<double> &distributions, const std::vector<flag_t> &flags,
                 std::vector<double> mass, const coord_t &length);
 
-// TODO: Boundary Conditions for Interface cells, maybe perform during streaming step?
-
 // Corresponds to section 4.3.
 // TODO: Find better name!
 void getPotentialUpdates(const coord_t &coord, double mass, double density, gridSet_t &filled,

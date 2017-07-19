@@ -33,7 +33,7 @@ void doStreaming(const std::vector<double> &collideField, std::vector<double> &s
                     // For interface cells we have to do some things differently.
                     // The second pass over the distributions makes things easier.
                     // We need to deal with the following things:
-                    // 1. Interface cells have empty cells, with no valid distributions.
+                    // 1. Interface cells have empty cells, with no valid distr ibutions.
                     // 2. To preserve balance, we need to reconstruct distributions along the
                     // interface-normal.
                     const auto coord = coord_t{x, y, z};

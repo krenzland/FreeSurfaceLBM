@@ -74,24 +74,26 @@ int main(int argc, char *argv[]) {
     initialiseCollideAndStreamFields(collideField, streamField);
     initialiseFlagField(flagField, scenario.c_str(), length, offset, ourCoords, procs,
                         boundaryConditions, verbose);
-    auto mass =
-        std::vector<double>(num_cells); // TODO: Extract to function and initialise properly!
+    auto mass = initialiseMassField(flagField, length);
+    initialiseInterface(streamField, mass, flagField, length);
 
     auto writer = VtkWriter("results/output", length, realLength, offset, ourCoords);
     writer.write(collideField, mass, flagField, 0);
 
     for (int t = 1; t < timesteps; ++t) {
+        std::cout << "#It = " << t << std::endl;
         auto filled = gridSet_t();
         auto emptied = gridSet_t();
 
         for (int i = 0; i < 6; ++i) {
+            break;
             if (neighborsIdx[i] != MPI_PROC_NULL) {
                 extract(i, collideField, flagField, bufferOut[i], length);
                 swap(bufferIn[i], bufferOut[i], neighborsIdx, i, mpiGrid);
                 inject(i, collideField, flagField, bufferIn[i], length);
             }
         }
-        streamMass(collideField, flagField, mass, length); // Maybe do after normal streaming?
+        streamMass(streamField, flagField, mass, length); // Maybe do after normal streaming?
         doStreaming(collideField, streamField, mass, flagField, length);
         std::swap(collideField, streamField);
         // TODO: Reconstruct boundaries for interface cells.
