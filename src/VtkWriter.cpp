@@ -5,7 +5,8 @@ VtkWriter::VtkWriter(std::string filenameRoot, coord_t length, coord_t realLengt
     : filenameRoot(filenameRoot), length(length), realLength(realLength), offset(offset),
       processId(processId) {}
 
-void VtkWriter::write(const std::vector<double> &collideField, const std::vector<flag_t> &flagField,
+void VtkWriter::write(const std::vector<double> &collideField, const std::vector<double> &mass,
+                      const std::vector<flag_t> &flagField,
                       int t) {
     std::stringstream filenameBuilder;
     // Filename is of the format name_i_j_k.t, where ijk are the mpi
@@ -56,6 +57,16 @@ void VtkWriter::write(const std::vector<double> &collideField, const std::vector
             os << density[i] << '\n';
         }
     }
+
+    os << "\nSCALARS mass float 1"
+       << "\nLOOKUP_TABLE default\n\n";
+
+    for (size_t i = 0; i < mass.size(); ++i) {
+        if (flagField[i] != flag_t::PARALLEL_BOUNDARY) {
+            os << mass[i] << '\n';
+        }
+    }
+
 
     os << "\nSCALARS cell_type int 1"
        << "\nLOOKUP_TABLE default\n\n";

@@ -13,8 +13,8 @@ class VtkWriter {
     VtkWriter(std::string filenameRoot, coord_t length, coord_t realLength, coord_t offset,
               coord_t processId);
 
-    void write(const std::vector<double> &collideField, const std::vector<flag_t> &flagField,
-               int t);
+    void write(const std::vector<double> &collideField, const std::vector<double> &mass,
+               const std::vector<flag_t> &flagField, int t);
 
   private:
     std::string filenameRoot;

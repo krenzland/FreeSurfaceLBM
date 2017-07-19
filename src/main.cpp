@@ -78,7 +78,7 @@ int main(int argc, char *argv[]) {
         std::vector<double>(num_cells); // TODO: Extract to function and initialise properly!
 
     auto writer = VtkWriter("results/output", length, realLength, offset, ourCoords);
-    writer.write(collideField, flagField, 0);
+    writer.write(collideField, mass, flagField, 0);
 
     for (int t = 1; t < timesteps; ++t) {
         auto filled = gridSet_t();
@@ -102,7 +102,7 @@ int main(int argc, char *argv[]) {
         treatBoundary(collideField, flagField, boundaryConditions, length);
 
         if (!(t % timestepsPerPlotting)) {
-            writer.write(collideField, flagField, t);
+            writer.write(collideField, mass, flagField, t);
         }
     }
 
