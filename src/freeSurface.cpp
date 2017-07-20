@@ -1,6 +1,6 @@
 #include "freeSurface.hpp"
-#include <numeric>
 #include <iostream>
+#include <numeric>
 
 std::array<double, 3> computeSurfaceNormal(const std::vector<double> &distributions,
                                            const std::vector<double> &mass, const coord_t &position,
@@ -61,7 +61,7 @@ void streamMass(const std::vector<double> &distributions, const std::vector<flag
                         // Exchange interface and interface at x + \Delta t e_i (eq. 4.2)
                         // TODO: (maybe) substitute s_e with values from table 4.1
                         const double s_e = distributions[neighFlag * Q + inverseVelocityIndex(i)] -
-                                distributions[fieldIndex];
+                                           distributions[fieldIndex];
                         deltaMass += s_e * 0.5 * (curFluidFraction + neighFluidFraction);
                     }
                 }
@@ -94,8 +94,10 @@ void interpolateEmptyCell(std::vector<double> &distributions, const std::vector<
         double avgDensity = 0.0;
         auto avgVel = std::array<double, 3>();
         for (int i = 0; i < Q; ++i) {
-            const int neighFlagIndex =
-                neighbouring_fi_cell_index(cell[0], cell[1], cell[2], i, length);
+            const auto &vel = LATTICEVELOCITIES[i];
+            const auto neigh = coord_t{cell[0] + vel[0], cell[1] + vel[1], cell[2] + vel[2]};
+
+            const int neighFlagIndex = indexForCell(neigh, length);
             if (flags[neighFlagIndex] == flag_t::FLUID ||
                 flags[neighFlagIndex] == flag_t::INTERFACE) {
                 const int neighDistrIndex = neighFlagIndex * Q;
@@ -110,18 +112,18 @@ void interpolateEmptyCell(std::vector<double> &distributions, const std::vector<
                 avgVel[1] += neighVelocity[1];
                 avgVel[2] += neighVelocity[2];
             }
-
-            // Every empty cell has at least one interface cell as neighbour, otherwise we have a
-            // worse problem than division by zero.
-            assert(numNeighs != 0);
-            avgDensity /= numNeighs;
-            avgVel[0] /= numNeighs;
-            avgVel[1] /= numNeighs;
-            avgVel[2] /= numNeighs;
-
-            // Note: This writes the equilibrium distribution directly into the distributions array.
-            computeFeq(avgDensity, avgVel.data(), &distributions[cellIndex]);
         }
+
+        // Every empty cell has at least one interface cell as neighbour, otherwise we have a
+        // worse problem than division by zero.
+        assert(numNeighs != 0);
+        avgDensity /= numNeighs;
+        avgVel[0] /= numNeighs;
+        avgVel[1] /= numNeighs;
+        avgVel[2] /= numNeighs;
+
+        // Note: This writes the equilibrium distribution directly into the distributions array.
+        computeFeq(avgDensity, avgVel.data(), &distributions[cellIndex]);
     }
 }
 
@@ -137,7 +139,7 @@ void flagReinit(std::vector<double> distributions, std::vector<double> &mass,
     // TODO: Do we need to do this? Not sure...
     auto toBalance = std::vector<coord_t>();
 
-    for (const auto& elem : filled) {
+    for (const auto &elem : filled) {
         // Find all neighbours of this cell.
         for (const auto &vel : LATTICEVELOCITIES) {
             coord_t neighbor = elem;
@@ -161,7 +163,9 @@ void flagReinit(std::vector<double> distributions, std::vector<double> &mass,
             // and velocity
             // of all neighbouring fluid and interface cells.
             // Note: Only interface cells that are not going to be emptied should be considered!
-            toBalance.emplace_back(neighbor);
+            if (flags[neighFlag] == flag_t::INTERFACE || flags[neighFlag] == flag_t::EMPTY) {
+                toBalance.emplace_back(neighbor);
+            }
         }
         // Now we can convert the cell itself to a fluid cell.
         const auto curFlag = indexForCell(elem, length);
@@ -182,6 +186,7 @@ void flagReinit(std::vector<double> distributions, std::vector<double> &mass,
                 // We can reuse the distributions as they are still valid.
             }
         }
+        // Again, cell should be marked as empty finally.
         const auto curFlag = indexForCell(elem, length);
         flags[curFlag] = flag_t::EMPTY;
     }
@@ -219,19 +224,16 @@ void distributeSingleMass(const std::vector<double> &distributions, std::vector<
        The reason for this is that the fluid interface moved beyond the current cell.
        We rebalance things by weighting the mass updates according to the direction of the interface
        normal.
-       This has to be done in two steps, we first calculate all update weights, normalize them and
-       then, in a second step update the weights.*/
+       This has to be done in two steps, we first calculate all updated weights, normalize them and
+       then, in a second step, update the weights.*/
 
     // Step 1: Calculate the unnormalized weights.
     const auto normal = computeSurfaceNormal(distributions, mass, coord, length);
-    std::array<double, 19> weights;
+    std::array<double, 19> weights{};
 
     for (size_t i = 0; i < LATTICEVELOCITIES.size(); ++i) {
         const auto &vel = LATTICEVELOCITIES[i];
-        coord_t neighbor = coord;
-        neighbor[0] += vel[0];
-        neighbor[1] += vel[1];
-        neighbor[2] += vel[2];
+        coord_t neighbor = {coord[0] + vel[0], coord[1] + vel[1], coord[2] + vel[2]};
 
         const int neighFlag = indexForCell(neighbor, length);
         if (flags[neighFlag] != flag_t::INTERFACE)
@@ -239,9 +241,9 @@ void distributeSingleMass(const std::vector<double> &distributions, std::vector<
 
         const double dotProduct = normal[0] * vel[0] + normal[1] * vel[1] + normal[2] * vel[2];
         if (type == update_t::FILLED) {
-            weights[i] = dotProduct > 0 ? dotProduct : 0;
-        } else {
-            weights[i] = dotProduct < 0 ? -dotProduct : 0;
+            weights[i] = std::max(0.0, dotProduct);
+        } else { // EMPTIED
+            weights[i] = -std::min(0.0, dotProduct);
         }
     }
 
@@ -249,14 +251,14 @@ void distributeSingleMass(const std::vector<double> &distributions, std::vector<
     const double normalizer =
         std::accumulate(weights.begin(), weights.end(), 0.0, std::plus<double>());
 
+    if (normalizer == 0.0)
+        return; // TODO: Is this a good thing to do? This corner case isn't mentioned in the paper.
+
     // Step 3: Redistribute weights. As non-interface cells have weight 0, we can just loop through
     // all cells.
     for (size_t i = 0; i < LATTICEVELOCITIES.size(); ++i) {
         const auto &vel = LATTICEVELOCITIES[i];
-        coord_t neighbor = coord;
-        neighbor[0] += vel[0];
-        neighbor[1] += vel[1];
-        neighbor[2] += vel[2];
+        coord_t neighbor = {coord[0] + vel[0], coord[1] + vel[1], coord[2] + vel[2]};
 
         const int neighFlag = indexForCell(neighbor, length);
         mass[neighFlag] += (weights[i] / normalizer) * excessMass;
