@@ -30,7 +30,7 @@ std::array<double, 3> computeSurfaceNormal(const std::vector<double> &distributi
 }
 
 void streamMass(const std::vector<double> &distributions, const std::vector<flag_t> &flags,
-                std::vector<double> mass, const coord_t &length) {
+                std::vector<double> &mass, const coord_t &length) {
     for (int z = 0; z < length[2] + 2; ++z) {
         for (int y = 0; y < length[1] + 2; ++y) {
             for (int x = 0; x < length[0] + 2; ++x) {
@@ -43,9 +43,9 @@ void streamMass(const std::vector<double> &distributions, const std::vector<flag
                     continue;
 
                 const int fieldIndex = flagIndex * Q;
-
                 const double curDensity = computeDensity(&distributions[fieldIndex]);
                 const double curFluidFraction = mass[flagIndex] / curDensity;
+
                 for (int i = 0; i < Q; ++i) {
                     const auto &vel = LATTICEVELOCITIES[i];
                     const auto neighCell = coord_t{x + vel[0], y + vel[1], z + vel[2]};
