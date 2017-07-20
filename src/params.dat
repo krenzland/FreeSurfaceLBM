@@ -7,8 +7,8 @@ xprocs				1
 yprocs				1
 zprocs				1 # ....
 
-timesteps                       1000
-timestepsPerPlotting            100
+timesteps                       100
+timestepsPerPlotting            1
 tau                             0.7 # kjkl
 
 # Boundary Conditions

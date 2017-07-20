@@ -93,7 +93,7 @@ int main(int argc, char *argv[]) {
                 inject(i, collideField, flagField, bufferIn[i], length);
             }
         }
-        streamMass(streamField, flagField, mass, length); // Maybe do after normal streaming?
+        streamMass(collideField, flagField, mass, length); // Maybe do after normal streaming?
         doStreaming(collideField, streamField, mass, flagField, length);
         std::swap(collideField, streamField);
         // TODO: Reconstruct boundaries for interface cells.

@@ -19,16 +19,16 @@ void doStreaming(const std::vector<double> &collideField, std::vector<double> &s
             for (int x = 0; x < length[0] + 2; ++x) {
                 const int flagIndex = indexForCell(x, y, z, length);
                 const int fieldIndex = flagIndex * Q;
-                if (flagField[flagIndex] == flag_t::FLUID ||
-                    flagField[flagIndex] == flag_t::INTERFACE) {
+
+                if (flagField[flagIndex] == flag_t::FLUID) {
                     // Standard streaming step.
                     for (int i = 0; i < Q; ++i) {
                         const int neighbour = neighbouring_fi_cell_index(x, y, z, i, length) * Q;
                         streamField[fieldIndex + i] = collideField[neighbour + i];
-
                         assert(streamField[fieldIndex + i] >= 0.0);
                     }
                 }
+
                 if (flagField[flagIndex] == flag_t::INTERFACE) {
                     // For interface cells we have to do some things differently.
                     // The second pass over the distributions makes things easier.
@@ -41,7 +41,6 @@ void doStreaming(const std::vector<double> &collideField, std::vector<double> &s
 
                     for (int i = 0; i < Q; ++i) {
                         const int neighbourFlag = neighbouring_fi_cell_index(x, y, z, i, length);
-                        const int neighbourDistr = neighbourFlag * Q;
 
                         const int inv = inverseVelocityIndex(i);
                         const auto &invVelocity = LATTICEVELOCITIES[inv];
@@ -56,20 +55,21 @@ void doStreaming(const std::vector<double> &collideField, std::vector<double> &s
                             // Note that we have to calculate the velocity of the time step before,
                             // hence the choice
                             // of distribution field.
-                            const double neighDensity =
-                                computeDensity(&collideField[neighbourDistr]);
-                            std::array<double, 3> neighVelocity;
-                            computeVelocity(&collideField[neighbourDistr], neighDensity,
-                                            neighVelocity.data());
-                            std::array<double, 19> neighFeq;
-                            computeFeq(atmosphericPressure, neighVelocity.data(), neighFeq.data());
+                            const double curDensity = computeDensity(&collideField[fieldIndex]);
+                            std::array<double, 3> velocity;
+                            computeVelocity(&collideField[fieldIndex], curDensity, velocity.data());
+                            std::array<double, 19> feq;
+                            computeFeq(atmosphericPressure, velocity.data(), feq.data());
 
                             // The paper uses a push-stream step, we use a pull-stream step.
                             // This is why we invert all fluid directions.
                             // TODO: Verify this claim and generally the correctness of the
                             // reconstruction.
-                            streamField[fieldIndex + i] =
-                                neighFeq[inv] + neighFeq[i] - collideField[inv];
+                            streamField[fieldIndex + i] = feq[inv] + feq[i] - collideField[inv];
+                        } else {
+                            // Perform normal streaming step.
+                            streamField[fieldIndex + i] = collideField[fieldIndex + i];
+                            assert(streamField[fieldIndex + i] >= 0.0);
                         }
                     }
                 }

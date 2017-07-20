@@ -22,8 +22,15 @@ std::array<double, 3> computeSurfaceNormal(const std::vector<double> &distributi
         const double plusDensity = computeDensity(&distributions[nextNeighbour * Q]);
         const double minusDensity = computeDensity(&distributions[prevNeighbour * Q]);
 
-        const double plusFluidFraction = plusDensity / mass[nextNeighbour];
-        const double minusFluidFraction = minusDensity / mass[prevNeighbour];
+        double plusFluidFraction = 0.0;
+        if (mass[nextNeighbour] != 0.0) {
+            plusFluidFraction = plusDensity / mass[nextNeighbour];
+        }
+
+        double minusFluidFraction = 0.0;
+        if (mass[prevNeighbour] != 0.0) {
+            minusFluidFraction = minusDensity / mass[prevNeighbour];
+        }
         normal[dim] = 0.5 * (minusFluidFraction - plusFluidFraction);
     }
     return normal;
@@ -154,17 +161,16 @@ void flagReinit(std::vector<double> distributions, std::vector<double> &mass,
             if (flags[neighFlag] == flag_t::EMPTY) {
                 // No special care needed here.
                 flags[neighFlag] = flag_t::INTERFACE;
+                toBalance.emplace_back(neighbor);
+                // Notice that the new interface cells don't have any valid distributions.
+                // They are initialised with f^{eq}_i (p_{avg}, v_{avg}), which are the average
+                // density
+                // and velocity
+                // of all neighbouring fluid and interface cells.
+                // Note: Only interface cells that are not going to be emptied should be considered!
             } else if (flags[neighFlag] == flag_t::INTERFACE) {
                 // Already is an interface but should not be converted.
                 emptied.erase(neighbor);
-            }
-            // Notice that the new interface cells don't have any valid distributions.
-            // They are initialised with f^{eq}_i (p_{avg}, v_{avg}), which are the average density
-            // and velocity
-            // of all neighbouring fluid and interface cells.
-            // Note: Only interface cells that are not going to be emptied should be considered!
-            if (flags[neighFlag] == flag_t::INTERFACE || flags[neighFlag] == flag_t::EMPTY) {
-                toBalance.emplace_back(neighbor);
             }
         }
         // Now we can convert the cell itself to a fluid cell.
@@ -176,17 +182,14 @@ void flagReinit(std::vector<double> distributions, std::vector<double> &mass,
     for (auto &elem : emptied) {
         // Convert all neighbours to interface cells.
         for (const auto &vel : LATTICEVELOCITIES) {
-            coord_t neighbor = elem;
-            neighbor[0] += vel[0];
-            neighbor[1] += vel[1];
-            neighbor[2] += vel[2];
+            coord_t neighbor = {elem[0] + vel[0], elem[1] + vel[1], elem[2] + vel[2]};
             const auto neighFlag = indexForCell(neighbor, length);
             if (flags[neighFlag] == flag_t::FLUID) {
                 flags[neighFlag] = flag_t::INTERFACE;
                 // We can reuse the distributions as they are still valid.
             }
         }
-        // Again, cell should be marked as empty finally.
+        // Again, cell should be marked as empty, finally.
         const auto curFlag = indexForCell(elem, length);
         flags[curFlag] = flag_t::EMPTY;
     }
