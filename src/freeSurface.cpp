@@ -9,15 +9,13 @@ std::array<double, 3> computeSurfaceNormal(const std::vector<double> &distributi
     // We approximate the surface normal element-wise using central-differences of the fluid
     // fraction gradient.
     for (size_t dim = 0; dim < normal.size(); ++dim) {
-        auto curPosition = position;
+        coord_t curPosition = position;
 
         // We need the next and previous neighbour for dimension dim.
         curPosition[dim]++;
-        const auto nextNeighbour =
-            indexForCell(curPosition[0], curPosition[1], curPosition[2], length);
+        const auto nextNeighbour = indexForCell(curPosition, length);
         curPosition[dim] -= 2;
-        const auto prevNeighbour =
-            indexForCell(curPosition[0], curPosition[1], curPosition[2], length);
+        const auto prevNeighbour = indexForCell(curPosition, length);
 
         const double plusDensity = computeDensity(&distributions[nextNeighbour * Q]);
         const double minusDensity = computeDensity(&distributions[prevNeighbour * Q]);
@@ -57,18 +55,19 @@ void streamMass(const std::vector<double> &distributions, const std::vector<flag
                     const auto &vel = LATTICEVELOCITIES[i];
                     const auto neighCell = coord_t{x + vel[0], y + vel[1], z + vel[2]};
                     const auto neighFlag = indexForCell(neighCell, length);
+                    const auto neighField = neighFlag * Q;
 
                     if (flags[neighFlag] == flag_t::FLUID) {
                         // Exchange interface and fluid at x + \Delta t e_i (eq. 4.2)
-                        deltaMass += distributions[neighFlag * Q + inverseVelocityIndex(i)] -
-                                     distributions[fieldIndex];
+                        deltaMass += distributions[neighField + inverseVelocityIndex(i)] -
+                                     distributions[fieldIndex + i];
                     } else if (flags[neighFlag] == flag_t::INTERFACE) {
-                        const double neighDensity = computeDensity(&distributions[neighFlag * Q]);
+                        const double neighDensity = computeDensity(&distributions[neighField]);
                         const double neighFluidFraction = mass[neighFlag] / neighDensity;
                         // Exchange interface and interface at x + \Delta t e_i (eq. 4.2)
                         // TODO: (maybe) substitute s_e with values from table 4.1
                         const double s_e = distributions[neighFlag * Q + inverseVelocityIndex(i)] -
-                                           distributions[fieldIndex];
+                                           distributions[fieldIndex + i];
                         deltaMass += s_e * 0.5 * (curFluidFraction + neighFluidFraction);
                     }
                 }
