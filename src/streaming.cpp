@@ -33,7 +33,7 @@ void doStreaming(const std::vector<double> &collideField, std::vector<double> &s
                     // For interface cells we have to do some things differently.
                     // The second pass over the distributions makes things easier.
                     // We need to deal with the following things:
-                    // 1. Interface cells have empty cells, with no valid distr ibutions.
+                    // 1. Interface cells have empty cells, with no valid distributions.
                     // 2. To preserve balance, we need to reconstruct distributions along the
                     // interface-normal.
                     const auto coord = coord_t{x, y, z};
@@ -58,14 +58,14 @@ void doStreaming(const std::vector<double> &collideField, std::vector<double> &s
                             const double curDensity = computeDensity(&collideField[fieldIndex]);
                             std::array<double, 3> velocity;
                             computeVelocity(&collideField[fieldIndex], curDensity, velocity.data());
-                            std::array<double, 19> feq;
+                            std::array<double, Q> feq;
                             computeFeq(atmosphericPressure, velocity.data(), feq.data());
 
                             // The paper uses a push-stream step, we use a pull-stream step.
                             // This is why we invert all fluid directions.
                             // TODO: Verify this claim and generally the correctness of the
                             // reconstruction.
-                            streamField[fieldIndex + i] = feq[inv] + feq[i] - collideField[inv];
+                            streamField[fieldIndex + i] = feq[inv] + feq[i] - collideField[fieldIndex + inv];
                         } else {
                             // Perform normal streaming step.
                             streamField[fieldIndex + i] = collideField[fieldIndex + i];
