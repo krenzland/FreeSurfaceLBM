@@ -16,6 +16,7 @@ void doCollision(std::vector<double> &distributions, const std::vector<double> &
     double density = 0;
     double velocity[3] = {0};
     double feq[19] = {0};
+    const double gravity[3] = {0, -0.01, 0};
 
     for (int z = 0; z < length[2] + 2; ++z) {
         for (int y = 0; y < length[1] + 2; ++y) {
@@ -29,6 +30,10 @@ void doCollision(std::vector<double> &distributions, const std::vector<double> &
 
                 density = computeDensity(&distributions[distrIndex]);
                 computeVelocity(&distributions[distrIndex], density, velocity);
+//                apply gravity to velocity
+                for (int i = 0; i < 3; ++i) {
+                    velocity[i] += gravity[i] * tau;
+                }
                 computeFeq(density, velocity, feq);
                 computePostCollisionDistributions(&distributions[distrIndex], tau, feq);
 

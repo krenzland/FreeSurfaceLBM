@@ -13,7 +13,7 @@ tau                             0.7 # kjkl
 
 # Boundary Conditions
 bcLeft                          NO_SLIP
-bcRight                         MOVING_WALL
+bcRight                         NO_SLIP
 bcTop                           NO_SLIP
 bcBottom                        NO_SLIP
 bcFront                         NO_SLIP
@@ -23,11 +23,11 @@ bcBack                          NO_SLIP
 scenario                        scenarios/empty
 
 velocityWallX                   0.0
-velocityWallY                   0.05
-velocityWallZ                   0.05
+velocityWallY                   0.0
+velocityWallZ                   0.0
 
 velocityInX                     0.0
 velocityInY                     0.0
 velocityInZ                     0.0
 
-pressureIn                      1.000
+pressureIn                      0.0

@@ -1,6 +1,7 @@
 #include "parallel.hpp"
 #include "LBMHelper.hpp"
 #include <assert.h>
+#include <iostream>
 
 void initializeMPI(int &rank, int &noRanks, int &argc, char ***argv) {
     MPI_Init(&argc, argv);
