@@ -152,12 +152,14 @@ std::vector<double> initialiseMassField(std::vector<flag_t> &flags, const coord_
     auto mass = std::vector<double>(flags.size());
 
     // Set mass for empty cells to zero, for fluid cells to the density.
-    // Interface cells are generated seperately so need no special case.
+    // Interface cells are generated separately so need no special case.
     // Boundary cells are treated as empty cells, the mass shouldn't matter anyway.
     for (size_t i = 0; i < flags.size(); ++i) {
         if (flags[i] == flag_t::FLUID) {
             // Density in first timestep is 1 for fluid cells.
             mass[i] = 1.0;
+        } else if (flags[i] == flag_t::INTERFACE) {
+            mass[i] = 0.5;
         } else {
             mass[i] = 0.0;
         }

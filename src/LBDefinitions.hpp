@@ -3,6 +3,7 @@
 
 #include <array>
 #include <math.h>
+#include <string>
 #include <unordered_map>
 
 using coord_t = std::array<int, 3>;

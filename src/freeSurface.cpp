@@ -152,28 +152,24 @@ void flagReinit(std::vector<double> distributions, std::vector<double> &mass,
             neighbor[0] += vel[0];
             neighbor[1] += vel[1];
             neighbor[2] += vel[2];
-            const auto neighFlag = indexForCell(neighbor[0], neighbor[1], neighbor[2], length);
+            const int neighFlag = indexForCell(neighbor[0], neighbor[1], neighbor[2], length);
             // This neighbor is converted to an interface cell iff. it is an empty cell or a cell
             // that would become an emptied cell.
             // We need to remove it from the emptied set, otherwise we might have holes in the
             // interface.
             if (flags[neighFlag] == flag_t::EMPTY) {
-                // No special care needed here.
                 flags[neighFlag] = flag_t::INTERFACE;
-                toBalance.emplace_back(neighbor);
                 // Notice that the new interface cells don't have any valid distributions.
                 // They are initialised with f^{eq}_i (p_{avg}, v_{avg}), which are the average
-                // density
-                // and velocity
-                // of all neighbouring fluid and interface cells.
-                // Note: Only interface cells that are not going to be emptied should be considered!
+                // density and velocity of all neighbouring fluid and interface cells.
+                toBalance.emplace_back(neighbor);
             } else if (flags[neighFlag] == flag_t::INTERFACE) {
-                // Already is an interface but should not be converted.
+                // Already is an interface but should not be converted to an empty cell later.
                 emptied.erase(neighbor);
             }
         }
         // Now we can convert the cell itself to a fluid cell.
-        const auto curFlag = indexForCell(elem, length);
+        const int curFlag = indexForCell(elem, length);
         flags[curFlag] = flag_t::FLUID;
     }
 
@@ -212,10 +208,12 @@ void distributeSingleMass(const std::vector<double> &distributions, std::vector<
         // Interface -> Full cell, filled cells have mass and should have a mass equal to their
         // density.
         excessMass = mass[flagIndex] - density;
+        assert(excessMass >= 0.0);
         mass[flagIndex] = density;
     } else {
         // Interface -> Empty cell, empty cells should not have any mass so all mass is excess mass.
         excessMass = mass[flagIndex];
+        assert(excessMass < 0.0); // Follows from the offset!
         mass[flagIndex] = 0.0;
     }
 
@@ -247,6 +245,7 @@ void distributeSingleMass(const std::vector<double> &distributions, std::vector<
         } else { // EMPTIED
             weights[i] = -std::min(0.0, dotProduct);
         }
+        assert(weights[i] >= 0.0);
     }
 
     // Step 2: Calculate normalizer (otherwise sum of weights != 1.0)
