@@ -20,7 +20,8 @@ void doStreaming(const std::vector<double> &collideField, std::vector<double> &s
                 const int flagIndex = indexForCell(x, y, z, length);
                 const int fieldIndex = flagIndex * Q;
 
-                if (flagField[flagIndex] == flag_t::FLUID) {
+                if (flagField[flagIndex] == flag_t::FLUID ||
+                    flagField[flagIndex] == flag_t::INTERFACE) {
                     // Standard streaming step.
                     for (int i = 0; i < Q; ++i) {
                         const int neighbour = neighbouring_fi_cell_index(x, y, z, i, length) * Q;
@@ -40,16 +41,20 @@ void doStreaming(const std::vector<double> &collideField, std::vector<double> &s
                     const auto normal = computeSurfaceNormal(collideField, mass, coord, length);
 
                     for (int i = 0; i < Q; ++i) {
-                        const int neighbourFlag = neighbouring_fi_cell_index(x, y, z, i, length);
+                        const auto &vel = LATTICEVELOCITIES[i];
+                        const int neighFlag =
+                            indexForCell(coord_t{x + vel[0], y + vel[1], z + vel[2]}, length);
+                        const bool isEmptyAdjacent = flagField[neighFlag] == flag_t::EMPTY;
 
                         const int inv = inverseVelocityIndex(i);
                         const auto &invVelocity = LATTICEVELOCITIES[inv];
                         const double dotProduct = normal[0] * invVelocity[0] +
                                                   normal[1] * invVelocity[1] +
                                                   normal[2] * invVelocity[2];
+
                         const bool isNormalDirection = dotProduct > 0.0;
 
-                        if (flagField[neighbourFlag] == flag_t::EMPTY || isNormalDirection) {
+                        if (isEmptyAdjacent || isNormalDirection) {
                             // We need to reconstruct this distribution with eq. (4.5).
                             const double atmosphericPressure = 1.0;
                             // Note that we have to calculate the velocity of the time step before,
@@ -61,15 +66,8 @@ void doStreaming(const std::vector<double> &collideField, std::vector<double> &s
                             std::array<double, Q> feq;
                             computeFeq(atmosphericPressure, velocity.data(), feq.data());
 
-                            // The paper uses a push-stream step, we use a pull-stream step.
-                            // This is why we invert all fluid directions.
-                            // TODO: Verify this claim and generally the correctness of the
-                            // reconstruction.
-                            streamField[fieldIndex + i] = feq[inv] + feq[i] - collideField[fieldIndex + inv];
-                        } else {
-                            // Perform normal streaming step.
-                            streamField[fieldIndex + i] = collideField[fieldIndex + i];
-                            assert(streamField[fieldIndex + i] >= 0.0);
+                            streamField[fieldIndex + inv] =
+                                feq[inv] + feq[i] - collideField[fieldIndex + i];
                         }
                     }
                 }

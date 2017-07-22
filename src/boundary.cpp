@@ -99,7 +99,9 @@ void singleNoSlip(std::vector<double> &collideField, const std::vector<flag_t> &
         }
 
         // Calculate the position of the cell the velocity points to.
-        const int neighCollideIndex = indexForCell(nX, nY, nZ, length) * Q;
+        const int neighFlagIndex = indexForCell(nX, nY, nZ, length);
+        const int neighCollideIndex = neighFlagIndex * Q;
+
         // This is a relevant direction.
         // First check, whether it's a wall, or not.
         double acceleration = 0.0;
@@ -117,6 +119,10 @@ void singleNoSlip(std::vector<double> &collideField, const std::vector<flag_t> &
         assert(collideIndex % Q == 0 &&
                neighCollideIndex % Q == 0); // Make sure they point to the start of a fluid cell.
         collideField[collideIndex + i] = collideField[neighCollideIndex + inv] + acceleration;
+        if (flagField[neighFlagIndex] == flag_t::EMPTY) {
+            // TODO: Maybe reconstruct the distributions coming from the empty cell!
+            collideField[collideIndex + i] = 0.0;
+        }
     }
 }
 

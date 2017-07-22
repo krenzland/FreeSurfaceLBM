@@ -9,15 +9,13 @@ std::array<double, 3> computeSurfaceNormal(const std::vector<double> &distributi
     // We approximate the surface normal element-wise using central-differences of the fluid
     // fraction gradient.
     for (size_t dim = 0; dim < normal.size(); ++dim) {
-        auto curPosition = position;
+        coord_t curPosition = position;
 
         // We need the next and previous neighbour for dimension dim.
         curPosition[dim]++;
-        const auto nextNeighbour =
-            indexForCell(curPosition[0], curPosition[1], curPosition[2], length);
+        const auto nextNeighbour = indexForCell(curPosition, length);
         curPosition[dim] -= 2;
-        const auto prevNeighbour =
-            indexForCell(curPosition[0], curPosition[1], curPosition[2], length);
+        const auto prevNeighbour = indexForCell(curPosition, length);
 
         const double plusDensity = computeDensity(&distributions[nextNeighbour * Q]);
         const double minusDensity = computeDensity(&distributions[prevNeighbour * Q]);
@@ -57,18 +55,19 @@ void streamMass(const std::vector<double> &distributions, const std::vector<flag
                     const auto &vel = LATTICEVELOCITIES[i];
                     const auto neighCell = coord_t{x + vel[0], y + vel[1], z + vel[2]};
                     const auto neighFlag = indexForCell(neighCell, length);
+                    const auto neighField = neighFlag * Q;
 
                     if (flags[neighFlag] == flag_t::FLUID) {
                         // Exchange interface and fluid at x + \Delta t e_i (eq. 4.2)
-                        deltaMass += distributions[neighFlag * Q + inverseVelocityIndex(i)] -
-                                     distributions[fieldIndex];
+                        deltaMass += distributions[neighField + inverseVelocityIndex(i)] -
+                                     distributions[fieldIndex + i];
                     } else if (flags[neighFlag] == flag_t::INTERFACE) {
-                        const double neighDensity = computeDensity(&distributions[neighFlag * Q]);
+                        const double neighDensity = computeDensity(&distributions[neighField]);
                         const double neighFluidFraction = mass[neighFlag] / neighDensity;
                         // Exchange interface and interface at x + \Delta t e_i (eq. 4.2)
                         // TODO: (maybe) substitute s_e with values from table 4.1
                         const double s_e = distributions[neighFlag * Q + inverseVelocityIndex(i)] -
-                                           distributions[fieldIndex];
+                                           distributions[fieldIndex + i];
                         deltaMass += s_e * 0.5 * (curFluidFraction + neighFluidFraction);
                     }
                 }
@@ -153,28 +152,24 @@ void flagReinit(std::vector<double> distributions, std::vector<double> &mass,
             neighbor[0] += vel[0];
             neighbor[1] += vel[1];
             neighbor[2] += vel[2];
-            const auto neighFlag = indexForCell(neighbor[0], neighbor[1], neighbor[2], length);
+            const int neighFlag = indexForCell(neighbor[0], neighbor[1], neighbor[2], length);
             // This neighbor is converted to an interface cell iff. it is an empty cell or a cell
             // that would become an emptied cell.
             // We need to remove it from the emptied set, otherwise we might have holes in the
             // interface.
             if (flags[neighFlag] == flag_t::EMPTY) {
-                // No special care needed here.
                 flags[neighFlag] = flag_t::INTERFACE;
-                toBalance.emplace_back(neighbor);
                 // Notice that the new interface cells don't have any valid distributions.
                 // They are initialised with f^{eq}_i (p_{avg}, v_{avg}), which are the average
-                // density
-                // and velocity
-                // of all neighbouring fluid and interface cells.
-                // Note: Only interface cells that are not going to be emptied should be considered!
+                // density and velocity of all neighbouring fluid and interface cells.
+                toBalance.emplace_back(neighbor);
             } else if (flags[neighFlag] == flag_t::INTERFACE) {
-                // Already is an interface but should not be converted.
+                // Already is an interface but should not be converted to an empty cell later.
                 emptied.erase(neighbor);
             }
         }
         // Now we can convert the cell itself to a fluid cell.
-        const auto curFlag = indexForCell(elem, length);
+        const int curFlag = indexForCell(elem, length);
         flags[curFlag] = flag_t::FLUID;
     }
 
@@ -213,10 +208,12 @@ void distributeSingleMass(const std::vector<double> &distributions, std::vector<
         // Interface -> Full cell, filled cells have mass and should have a mass equal to their
         // density.
         excessMass = mass[flagIndex] - density;
+        assert(excessMass >= 0.0);
         mass[flagIndex] = density;
     } else {
         // Interface -> Empty cell, empty cells should not have any mass so all mass is excess mass.
         excessMass = mass[flagIndex];
+        assert(excessMass < 0.0); // Follows from the offset!
         mass[flagIndex] = 0.0;
     }
 
@@ -248,6 +245,7 @@ void distributeSingleMass(const std::vector<double> &distributions, std::vector<
         } else { // EMPTIED
             weights[i] = -std::min(0.0, dotProduct);
         }
+        assert(weights[i] >= 0.0);
     }
 
     // Step 2: Calculate normalizer (otherwise sum of weights != 1.0)
