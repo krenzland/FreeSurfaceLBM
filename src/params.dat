@@ -1,5 +1,5 @@
 # Settings for simulation
-xlength                         40
+xlength                         80
 ylength                         40
 zlength                         40
 
@@ -7,7 +7,7 @@ xprocs				1
 yprocs				1
 zprocs				1 # ....
 
-timesteps                       100
+timesteps                       5000
 timestepsPerPlotting            1
 tau                             0.7 # kjkl
 

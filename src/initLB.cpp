@@ -73,7 +73,7 @@ void initialiseFlagField(std::vector<flag_t> &flagField, const char *geometryFil
     // TODO: Maybe initialise with velocity for dam break.
     for (int z = 1; z < length[2] + 1; ++z) {
         for (int y = 1; y < length[1] + 1; ++y) {
-            for (int x = length[0] / 2; x < length[0] + 1; ++x) {
+            for (int x = length[0] / 4; x < length[0] + 1; ++x) {
                 flagField[indexForCell(x, y, z, length)] = flag_t::EMPTY;
             }
         }

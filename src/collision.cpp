@@ -16,7 +16,7 @@ void doCollision(std::vector<double> &distributions, const std::vector<double> &
     double density = 0;
     double velocity[3] = {0};
     double feq[19] = {0};
-    const double gravity[3] = {0, -0.01, 0};
+    const double gravity[3] = {0, 0, -0.001};
 
     for (int z = 0; z < length[2] + 2; ++z) {
         for (int y = 0; y < length[1] + 2; ++y) {
