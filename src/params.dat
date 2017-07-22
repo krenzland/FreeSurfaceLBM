@@ -7,13 +7,13 @@ xprocs				1
 yprocs				1
 zprocs				1 # ....
 
-timesteps                       100
-timestepsPerPlotting            1
+timesteps                       500
+timestepsPerPlotting            10
 tau                             0.7 # kjkl
 
 # Boundary Conditions
-bcLeft                          NO_SLIP
-bcRight                         MOVING_WALL
+bcLeft                          PRESSURE_IN
+bcRight                         NO_SLIP
 bcTop                           NO_SLIP
 bcBottom                        NO_SLIP
 bcFront                         NO_SLIP
@@ -22,12 +22,12 @@ bcBack                          NO_SLIP
 # Settings for scenarios
 scenario                        scenarios/empty
 
-velocityWallX                   0.0
+velocityWallX                   0.05
 velocityWallY                   0.05
 velocityWallZ                   0.05
 
-velocityInX                     0.0
+velocityInX                     0.2
 velocityInY                     0.0
 velocityInZ                     0.0
 
-pressureIn                      1.000
+pressureIn                      1.05
