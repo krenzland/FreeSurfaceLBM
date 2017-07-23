@@ -38,6 +38,7 @@ std::array<double, 3> computeSurfaceNormal(const std::vector<double> &distributi
 void streamMass(const std::vector<double> &distributions, const std::vector<double> &density,
                 const std::vector<flag_t> &flags, const coord_t &length,
                 std::vector<double> &mass) {
+    #pragma omp parallel for
     for (int z = 0; z < length[2] + 2; ++z) {
         for (int y = 0; y < length[1] + 2; ++y) {
             for (int x = 0; x < length[0] + 2; ++x) {
@@ -108,7 +109,9 @@ void interpolateEmptyCell(std::vector<double> &distributions, std::vector<double
                           const std::vector<coord_t> &toBalance, const coord_t &length,
                           const std::vector<flag_t> &flags) {
     // Note: We only interpolate cells that are not emptied cells themselves!
-    for (const auto &cell : toBalance) {
+    #pragma omp parallel for
+    for (size_t i = 0; i < toBalance.size(); ++i) {
+        const auto &cell = toBalance[i];
         const int flagIndex = indexForCell(cell[0], cell[1], cell[2], length);
         const int cellIndex = flagIndex * Q;
 

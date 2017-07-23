@@ -4,7 +4,7 @@
 
 double computeDensity(const double *const currentCell) {
     double density = 0.0;
-#pragma omp simd
+    #pragma omp simd
     for (int i = 0; i < Q; ++i) {
         density += currentCell[i];
     }
@@ -19,12 +19,14 @@ void computeVelocity(const double *const currentCell, double density, double *ve
         velocity[i] = 0.0;
     }
 
+    #pragma omp simd
     for (int i = 0; i < Q; ++i) {
         for (int j = 0; j < dimension; ++j) {
             velocity[j] += currentCell[i] * LATTICEVELOCITIES[i][j];
         }
     }
     // divide by density to get velocity
+    #pragma omp simd
     for (int k = 0; k < dimension; ++k) {
         velocity[k] /= density;
     }
@@ -40,12 +42,15 @@ void computeFeq(double density, const double *const velocity, double *feq) {
     // First compute the norm of the velocity, as it is independent of i
     double u_dot_u = 0.0;
 
+    #pragma omp simd
     for (int i = 0; i < dimension; ++i) {
         u_dot_u += velocity[i] * velocity[i];
     }
 
+
     for (int i = 0; i < Q; ++i) {
         double ci_dot_u = 0.0;
+        #pragma omp simd
         for (int j = 0; j < dimension; ++j) {
             ci_dot_u += LATTICEVELOCITIES[i][j] * velocity[j];
         }

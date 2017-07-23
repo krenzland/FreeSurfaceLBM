@@ -79,6 +79,7 @@ void initialiseFlagField(std::vector<flag_t> &flagField, const std::string &geom
     }
 
     // We surround our entire geometry with a real boundary layer.
+    #pragma omp parallel for
     for (int z = 0; z < length[2] + 2; ++z) {
         for (int y = 0; y < length[1] + 2; ++y) {
             setBoundaryFlag(flagField, 0, y, z, length, boundaryConditions.bcLeft);
@@ -86,6 +87,7 @@ void initialiseFlagField(std::vector<flag_t> &flagField, const std::string &geom
         }
     }
 
+    #pragma omp parallel for
     for (int y = 0; y < length[1] + 2; ++y) {
         for (int x = 0; x < length[0] + 2; ++x) {
             setBoundaryFlag(flagField, x, y, 0, length, boundaryConditions.bcFront);
@@ -93,6 +95,7 @@ void initialiseFlagField(std::vector<flag_t> &flagField, const std::string &geom
         }
     }
 
+    #pragma omp parallel for
     for (int z = 0; z < length[2] + 2; ++z) {
         for (int x = 0; x < length[0] + 2; ++x) {
             setBoundaryFlag(flagField, x, length[1] + 1, z, length, boundaryConditions.bcTop);
@@ -132,6 +135,7 @@ std::vector<double> initialiseMassField(std::vector<flag_t> &flags, const coord_
     // Set mass for empty cells to zero, for fluid cells to the density.
     // Interface cells are generated separately so need no special case.
     // Boundary cells are treated as empty cells, the mass shouldn't matter anyway.
+    #pragma omp parallel for
     for (size_t i = 0; i < flags.size(); ++i) {
         if (flags[i] == flag_t::FLUID) {
             // Density in first timestep is 1 for fluid cells.

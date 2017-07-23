@@ -160,7 +160,7 @@ void singleOutflow(std::vector<double> &collideField, double refDensity, int x, 
 
 void treatBoundary(std::vector<double> &collideField, const std::vector<flag_t> &flagField,
                    const boundary_t &boundaryConditions, const coord_t &length) {
-#pragma omp parallel for
+#pragma omp parallel for schedule(static)
     for (int x = 0; x < length[0] + 2; ++x) {
         for (int y = 0; y < length[1] + 2; ++y) {
             for (int z = 0; z < length[2] + 2; ++z) {

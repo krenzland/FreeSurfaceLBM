@@ -42,7 +42,7 @@ int main(int argc, char *argv[]) {
     initialiseInterface(streamField, mass, density, length, flagField);
 
     auto writer = VtkWriter("results/output", length);
-    writer.write(collideField, mass, flagField, 0);
+    writer.write(collideField, mass, density, flagField, 0);
 
     for (int t = 1; t < timesteps; ++t) {
         auto filled = gridSet_t();
@@ -61,7 +61,7 @@ int main(int argc, char *argv[]) {
         treatBoundary(collideField, flagField, boundaryConditions, length);
 
         if (!(t % timestepsPerPlotting)) {
-            writer.write(collideField, mass, flagField, t);
+            writer.write(collideField, mass, density, flagField, t);
         }
     }
 
