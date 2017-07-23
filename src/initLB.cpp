@@ -63,9 +63,8 @@ void setBoundaryFlag(std::vector<flag_t> &flagField, int x, int y, int z, const 
     flagField[index] = value;
 }
 
-void initialiseFlagField(std::vector<flag_t> &flagField, const char *geometryFile,
-                         const coord_t &length, const coord_t &offset, const coord_t coord,
-                         const coord_t procs, boundary_t &boundaryConditions, bool verbose) {
+void initialiseFlagField(std::vector<flag_t> &flagField, const std::string &geometryFile,
+                         const coord_t &length, boundary_t &boundaryConditions, bool verbose) {
     // TODO: Remove hardcoded dam break thingy and read from file.
     // Scenario: Dam break. A third of the size of the geometry is filled with water, the other one
     // not.
@@ -98,28 +97,6 @@ void initialiseFlagField(std::vector<flag_t> &flagField, const char *geometryFil
         for (int x = 0; x < length[0] + 2; ++x) {
             setBoundaryFlag(flagField, x, length[1] + 1, z, length, boundaryConditions.bcTop);
             setBoundaryFlag(flagField, x, 0, z, length, boundaryConditions.bcBottom);
-        }
-    }
-    // Of course, most of these aren't real boundaries but should rather be
-    // ghost cells.
-    // That's why we replace them now with real cells, if necessary.
-    for (int dim = 0; dim < 3; ++dim) {
-        int curCoord[3] = {0, 0, 0};
-        const int d1 = otherDims[dim][0];
-        const int d2 = otherDims[dim][1];
-        for (curCoord[d1] = 0; curCoord[d1] < length[d1] + 2; ++(curCoord[d1])) {
-            for (curCoord[d2] = 0; curCoord[d2] < length[d2] + 2; ++(curCoord[d2])) {
-                if (coord[dim] != 0) {
-                    curCoord[dim] = 0;
-                    setBoundaryFlag(flagField, curCoord[0], curCoord[1], curCoord[2], length,
-                                    flag_t::PARALLEL_BOUNDARY);
-                }
-                if (coord[dim] != procs[dim] - 1) {
-                    curCoord[dim] = length[dim] + 1;
-                    setBoundaryFlag(flagField, curCoord[0], curCoord[1], curCoord[2], length,
-                                    flag_t::PARALLEL_BOUNDARY);
-                }
-            }
         }
     }
 }

@@ -79,16 +79,28 @@ void streamMass(const std::vector<double> &distributions, const std::vector<doub
     }
 }
 
-void getPotentialUpdates(const coord_t &coord, double mass, double density, gridSet_t &filled,
-                         gridSet_t &emptied) {
+void getPotentialUpdates(const std::vector<double> &mass, const std::vector<double> &density,
+                         gridSet_t &filled, gridSet_t &emptied, const coord_t &length) {
+    // Check whether we have to convert the interface to an emptied or fluid cell.
+    // Doesn't actually update the flags but pushes them to a queue.
+    // We do this here so we do not have to calculate the density again.
+
     // Offset avoids periodically switching between filled and empty status.
     const double offset = 10e-3;
-    // Eq. 4.7
-    if (mass > (1 + offset) * density) {
-        filled.insert(coord);
-    } else if (mass < -offset * density) {
-        // Emptied
-        emptied.insert(coord);
+    for (int z = 0; z < length[2] + 2; ++z) {
+        for (int y = 0; y < length[1] + 2; ++y) {
+            for (int x = 0; x < length[0] + 2; ++x) {
+                auto coord = coord_t{x, y, z};
+                const int flagIndex = indexForCell(coord, length);
+                // Eq. 4.7
+                if (mass[flagIndex] > (1 + offset) * density[flagIndex]) {
+                    filled.insert(coord);
+                } else if (mass[flagIndex] < -offset * density[flagIndex]) {
+                    // Emptied
+                    emptied.insert(coord);
+                }
+            }
+        }
     }
 }
 

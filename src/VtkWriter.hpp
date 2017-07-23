@@ -10,18 +10,13 @@
 
 class VtkWriter {
   public:
-    VtkWriter(std::string filenameRoot, coord_t length, coord_t realLength, coord_t offset,
-              coord_t processId);
-
+    VtkWriter(const std::string &filenameRoot, const coord_t &length);
     void write(const std::vector<double> &collideField, const std::vector<double> &mass,
                const std::vector<flag_t> &flagField, int t);
 
   private:
     std::string filenameRoot;
     coord_t length;
-    coord_t realLength;
-    coord_t offset;
-    coord_t processId;
 };
 
 #endif // CFD_LAB_VTKWRITER_HPP

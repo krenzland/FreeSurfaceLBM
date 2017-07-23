@@ -20,8 +20,8 @@ void streamMass(const std::vector<double> &distributions, const std::vector<doub
 
 // Corresponds to section 4.3.
 // TODO: Find better name!
-void getPotentialUpdates(const coord_t &coord, double mass, double density, gridSet_t &filled,
-                         gridSet_t &emptied);
+void getPotentialUpdates(const std::vector<double> &mass, const std::vector<double> &density,
+                         gridSet_t &filled, gridSet_t &emptied, const coord_t &length);
 
 void flagReinit(std::vector<double> distributions, std::vector<double> &mass,
                 std::vector<double> &density, gridSet_t &filled, gridSet_t &emptied,

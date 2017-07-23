@@ -3,6 +3,13 @@ project(CFD_LAB)
 
 set(CMAKE_CXX_STANDARD 14)
 
+FIND_PACKAGE(OpenMP REQUIRED)
+if(OPENMP_FOUND)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
+endif()
+
 set(sources
         boundary.cpp
         boundary.hpp
@@ -18,18 +25,14 @@ set(sources
         main.cpp
         streaming.cpp
         streaming.hpp
-        parallel.cpp
-        parallel.hpp
         LBMHelper.hpp
         LBMHelper.cpp
         ConfigParser.hpp
         VtkWriter.cpp
-        VtkWriter.hpp freeSurface.cpp)
-
-find_package(MPI REQUIRED)
-include_directories(SYSTEM ${MPI_CXX_INCLUDE_PATH})
+        VtkWriter.hpp
+        freeSurface.cpp)
 
 add_executable(lbsim ${sources})
 target_include_directories(lbsim PUBLIC ./)
-target_link_libraries(lbsim m ${MPI_CXX_LIBRARIES})
-target_compile_options(lbsim PUBLIC -Wall -Wno-missing-braces -pedantic -Werror -g -O3 -march=native ${MPI_CXX_COMPILE_FLAGS})
+target_link_libraries(lbsim m)
+target_compile_options(lbsim PUBLIC -Wall -Wno-missing-braces -pedantic -Werror -g -O3 -march=native)

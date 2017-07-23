@@ -14,6 +14,7 @@ int neighbouring_fi_cell_index(int x, int y, int z, int fi, const coord_t &lengt
 void doStreaming(const std::vector<double> &collideField, std::vector<double> &streamField,
                  const std::vector<double> &mass, std::vector<double> &density,
                  const coord_t &length, const std::vector<flag_t> &flagField) {
+#pragma omp parallel for schedule(static)
     for (int z = 0; z < length[2] + 2; ++z) {
         for (int y = 0; y < length[1] + 2; ++y) {
             for (int x = 0; x < length[0] + 2; ++x) {

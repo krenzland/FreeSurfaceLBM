@@ -23,9 +23,8 @@ void readParameters(
 void initialiseCollideAndStreamFields(std::vector<double> &collideField,
                                       std::vector<double> &streamField);
 
-void initialiseFlagField(std::vector<flag_t> &flagField, const char *geometryFile,
-                         const coord_t &length, const coord_t &offset, const coord_t coord,
-                         const coord_t procs, boundary_t &boundaryConditions, bool verbose);
+void initialiseFlagField(std::vector<flag_t> &flagField, const std::string &geometryFile,
+                         const coord_t &length, boundary_t &boundaryConditions, bool verbose);
 
 std::vector<double> initialiseMassField(std::vector<flag_t> &flags, const coord_t &length);
 

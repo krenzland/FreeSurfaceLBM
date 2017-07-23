@@ -13,12 +13,14 @@ void computePostCollisionDistributions(double *currentCell, double tau, const do
 void doCollision(std::vector<double> &distributions, const std::vector<double> &mass,
                  std::vector<double> &density, const std::vector<flag_t> &flagField, double tau,
                  const coord_t &length, gridSet_t &filled, gridSet_t &emptied) {
-    double curDensity = 0;
-    double velocity[3] = {0};
-    double feq[19] = {0};
-    const double gravity[3] = {0, 0, -0.00015};
 
+#pragma omp parallel for
     for (int z = 0; z < length[2] + 2; ++z) {
+        double curDensity = 0;
+        double velocity[3] = {0};
+        double feq[19] = {0};
+        const double gravity[3] = {0, 0, -0.00015};
+
         for (int y = 0; y < length[1] + 2; ++y) {
             for (int x = 0; x < length[0] + 2; ++x) {
                 const int flagIndex = indexForCell(x, y, z, length);
@@ -37,14 +39,6 @@ void doCollision(std::vector<double> &distributions, const std::vector<double> &
                 }
                 computeFeq(curDensity, velocity, feq);
                 computePostCollisionDistributions(&distributions[distrIndex], tau, feq);
-
-                if (flagField[flagIndex] == flag_t::INTERFACE) {
-                    // Check whether we have to convert the interface to an emptied or fluid cell.
-                    // Doesn't actually update the flags but pushes them to a queue.
-                    // We do this here so we do not have to calculate the density again.
-                    const coord_t coord = {x, y, z};
-                    getPotentialUpdates(coord, mass[flagIndex], curDensity, filled, emptied);
-                }
             }
         }
     }

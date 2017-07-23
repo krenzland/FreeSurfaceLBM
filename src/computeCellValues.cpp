@@ -4,6 +4,7 @@
 
 double computeDensity(const double *const currentCell) {
     double density = 0.0;
+#pragma omp simd
     for (int i = 0; i < Q; ++i) {
         density += currentCell[i];
     }
@@ -36,10 +37,9 @@ void computeFeq(double density, const double *const velocity, double *feq) {
     const double cs_2pow4 = 2 * cs_pow2 * cs_pow2;
     const double cs_2pow2 = 2 * cs_pow2;
 
-
-
     // First compute the norm of the velocity, as it is independent of i
     double u_dot_u = 0.0;
+
     for (int i = 0; i < dimension; ++i) {
         u_dot_u += velocity[i] * velocity[i];
     }
