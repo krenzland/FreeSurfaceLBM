@@ -3,8 +3,9 @@
 #include <numeric>
 
 std::array<double, 3> computeSurfaceNormal(const std::vector<double> &distributions,
-                                           const std::vector<double> &mass, const coord_t &position,
-                                           const coord_t &length) {
+                                           const std::vector<double> &density,
+                                           const coord_t &position, const coord_t &length,
+                                           const std::vector<double> &mass) {
     auto normal = std::array<double, 3>();
     // We approximate the surface normal element-wise using central-differences of the fluid
     // fraction gradient.
@@ -17,8 +18,8 @@ std::array<double, 3> computeSurfaceNormal(const std::vector<double> &distributi
         curPosition[dim] -= 2;
         const auto prevNeighbour = indexForCell(curPosition, length);
 
-        const double plusDensity = computeDensity(&distributions[nextNeighbour * Q]);
-        const double minusDensity = computeDensity(&distributions[prevNeighbour * Q]);
+        const double plusDensity = density[nextNeighbour];
+        const double minusDensity = density[prevNeighbour];
 
         double plusFluidFraction = 0.0;
         if (mass[nextNeighbour] != 0.0) {
@@ -34,8 +35,9 @@ std::array<double, 3> computeSurfaceNormal(const std::vector<double> &distributi
     return normal;
 }
 
-void streamMass(const std::vector<double> &distributions, const std::vector<flag_t> &flags,
-                std::vector<double> &mass, const coord_t &length) {
+void streamMass(const std::vector<double> &distributions, const std::vector<double> &density,
+                const std::vector<flag_t> &flags, const coord_t &length,
+                std::vector<double> &mass) {
     for (int z = 0; z < length[2] + 2; ++z) {
         for (int y = 0; y < length[1] + 2; ++y) {
             for (int x = 0; x < length[0] + 2; ++x) {
@@ -48,7 +50,7 @@ void streamMass(const std::vector<double> &distributions, const std::vector<flag
                     continue;
 
                 const int fieldIndex = flagIndex * Q;
-                const double curDensity = computeDensity(&distributions[fieldIndex]);
+                const double curDensity = density[flagIndex];
                 const double curFluidFraction = mass[flagIndex] / curDensity;
 
                 for (int i = 0; i < Q; ++i) {
@@ -62,7 +64,7 @@ void streamMass(const std::vector<double> &distributions, const std::vector<flag
                         deltaMass += distributions[neighField + inverseVelocityIndex(i)] -
                                      distributions[fieldIndex + i];
                     } else if (flags[neighFlag] == flag_t::INTERFACE) {
-                        const double neighDensity = computeDensity(&distributions[neighField]);
+                        const double neighDensity = density[neighFlag];
                         const double neighFluidFraction = mass[neighFlag] / neighDensity;
                         // Exchange interface and interface at x + \Delta t e_i (eq. 4.2)
                         // TODO: (maybe) substitute s_e with values from table 4.1
@@ -90,11 +92,13 @@ void getPotentialUpdates(const coord_t &coord, double mass, double density, grid
     }
 }
 
-void interpolateEmptyCell(std::vector<double> &distributions, const std::vector<flag_t> &flags,
-                          const std::vector<coord_t> &toBalance, const coord_t &length) {
+void interpolateEmptyCell(std::vector<double> &distributions, std::vector<double> &density,
+                          const std::vector<coord_t> &toBalance, const coord_t &length,
+                          const std::vector<flag_t> &flags) {
     // Note: We only interpolate cells that are not emptied cells themselves!
     for (const auto &cell : toBalance) {
-        const int cellIndex = indexForCell(cell[0], cell[1], cell[2], length);
+        const int flagIndex = indexForCell(cell[0], cell[1], cell[2], length);
+        const int cellIndex = flagIndex * Q;
 
         int numNeighs = 0;
         double avgDensity = 0.0;
@@ -107,7 +111,7 @@ void interpolateEmptyCell(std::vector<double> &distributions, const std::vector<
             if (flags[neighFlagIndex] == flag_t::FLUID ||
                 flags[neighFlagIndex] == flag_t::INTERFACE) {
                 const int neighDistrIndex = neighFlagIndex * Q;
-                const double neighDensity = computeDensity(&distributions[neighDistrIndex]);
+                const double neighDensity = density[neighFlagIndex];
                 std::array<double, 3> neighVelocity;
                 computeVelocity(&distributions[neighDistrIndex], neighDensity,
                                 neighVelocity.data());
@@ -128,14 +132,15 @@ void interpolateEmptyCell(std::vector<double> &distributions, const std::vector<
         avgVel[1] /= numNeighs;
         avgVel[2] /= numNeighs;
 
+        density[flagIndex] = avgDensity; // Density of new cell is changed!
         // Note: This writes the equilibrium distribution directly into the distributions array.
         computeFeq(avgDensity, avgVel.data(), &distributions[cellIndex]);
     }
 }
 
 void flagReinit(std::vector<double> distributions, std::vector<double> &mass,
-                std::vector<flag_t> &flags, gridSet_t &filled, gridSet_t &emptied,
-                const coord_t &length) {
+                std::vector<double> &density, gridSet_t &filled, gridSet_t &emptied,
+                const coord_t &length, std::vector<flag_t> &flags) {
     // First consider all filled cells.
 
     // Store all new fluid cells with no valid distributions.
@@ -191,25 +196,24 @@ void flagReinit(std::vector<double> distributions, std::vector<double> &mass,
 
     // Now we can interpolate the distributions for the new interface cells that have been former
     // empty cells.
-    interpolateEmptyCell(distributions, flags, toBalance, length);
+    interpolateEmptyCell(distributions, density, toBalance, length, flags);
 }
 
 // TODO: Find better name for this!
 enum class update_t { FILLED, EMPTIED };
 
 void distributeSingleMass(const std::vector<double> &distributions, std::vector<double> &mass,
-                          std::vector<flag_t> &flags, const update_t &type, const coord_t &length,
-                          const coord_t &coord) {
+                          const std::vector<double> &density, const update_t &type,
+                          const coord_t &length, const coord_t &coord, std::vector<flag_t> &flags) {
     // First determine how much mass needs to be redistributed and fix mass of converted cell.
     const int flagIndex = indexForCell(coord, length);
     double excessMass;
     if (type == update_t::FILLED) {
-        const double density = computeDensity(&distributions[flagIndex * Q]);
         // Interface -> Full cell, filled cells have mass and should have a mass equal to their
         // density.
-        excessMass = mass[flagIndex] - density;
+        excessMass = mass[flagIndex] - density[flagIndex];
         assert(excessMass >= 0.0);
-        mass[flagIndex] = density;
+        mass[flagIndex] = density[flagIndex];
     } else {
         // Interface -> Empty cell, empty cells should not have any mass so all mass is excess mass.
         excessMass = mass[flagIndex];
@@ -228,7 +232,7 @@ void distributeSingleMass(const std::vector<double> &distributions, std::vector<
        then, in a second step, update the weights.*/
 
     // Step 1: Calculate the unnormalized weights.
-    const auto normal = computeSurfaceNormal(distributions, mass, coord, length);
+    const auto normal = computeSurfaceNormal(distributions, density, coord, length, mass);
     std::array<double, 19> weights{};
 
     for (size_t i = 0; i < LATTICEVELOCITIES.size(); ++i) {
@@ -267,17 +271,17 @@ void distributeSingleMass(const std::vector<double> &distributions, std::vector<
 }
 
 void distributeMass(const std::vector<double> &distributions, std::vector<double> &mass,
-                    std::vector<flag_t> &flags, gridSet_t &filled, gridSet_t &emptied,
-                    const coord_t &length) {
+                    const std::vector<double> &density, gridSet_t &filled, gridSet_t &emptied,
+                    const coord_t &length, std::vector<flag_t> &flags) {
     // Here we redistribute the excess mass of the cells.
     // It is important that we get a copy of the filled/emptied where all converted cells are stored
     // and no other cells.
     // This excludes emptied cells that are used as interface cells instead!
 
     for (auto &&coord : filled) {
-        distributeSingleMass(distributions, mass, flags, update_t::FILLED, length, coord);
+        distributeSingleMass(distributions, mass, density, update_t::FILLED, length, coord, flags);
     }
     for (auto &&coord : emptied) {
-        distributeSingleMass(distributions, mass, flags, update_t::EMPTIED, length, coord);
+        distributeSingleMass(distributions, mass, density, update_t::EMPTIED, length, coord, flags);
     }
 }

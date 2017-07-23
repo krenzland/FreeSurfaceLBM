@@ -65,6 +65,7 @@ int main(int argc, char *argv[]) {
     auto collideField = std::vector<double>(num_cells * Q);
     auto streamField = std::vector<double>(num_cells * Q);
     auto flagField = std::vector<flag_t>(num_cells);
+    auto density = std::vector<double>(num_cells, 1.0);
 
     // For visualisation and the flag field we need the length without ghost
     // cells, but with walls.
@@ -75,7 +76,7 @@ int main(int argc, char *argv[]) {
     initialiseFlagField(flagField, scenario.c_str(), length, offset, ourCoords, procs,
                         boundaryConditions, verbose);
     auto mass = initialiseMassField(flagField, length);
-    initialiseInterface(streamField, mass, flagField, length);
+    initialiseInterface(streamField, mass, density, length, flagField);
 
     auto writer = VtkWriter("results/output", length, realLength, offset, ourCoords);
     writer.write(collideField, mass, flagField, 0);
@@ -90,17 +91,19 @@ int main(int argc, char *argv[]) {
             if (neighborsIdx[i] != MPI_PROC_NULL) {
                 extract(i, collideField, flagField, bufferOut[i], length);
                 swap(bufferIn[i], bufferOut[i], neighborsIdx, i, mpiGrid);
-                inject(i, collideField, flagField, bufferIn[i], length);
+                inject(i, collideField, flagField, bufferIn[i],
+                       length); // TODO: Update density field for boundary!
             }
         }
-        streamMass(collideField, flagField, mass, length); // Maybe do after normal streaming?
-        doStreaming(collideField, streamField, mass, flagField, length);
+        streamMass(collideField, density, flagField, length,
+                   mass); // Maybe do after normal streaming?
+        doStreaming(collideField, streamField, mass, density, length, flagField);
         std::swap(collideField, streamField);
         // TODO: Reconstruct boundaries for interface cells.
-        doCollision(collideField, mass, flagField, tau, length, filled, emptied);
-        flagReinit(collideField, mass, flagField, filled, emptied,
-                   length); // TODO: Finish implementation!
-        distributeMass(collideField, mass, flagField, filled, emptied, length);
+        doCollision(collideField, mass, density, flagField, tau, length, filled, emptied);
+        flagReinit(collideField, mass, density, filled, emptied, length,
+                   flagField); // TODO: Finish implementation!
+        distributeMass(collideField, mass, density, filled, emptied, length, flagField);
         treatBoundary(collideField, flagField, boundaryConditions, length);
 
         if (!(t % timestepsPerPlotting)) {

@@ -15,6 +15,6 @@ void computePostCollisionDistributions(double *currentCell, double tau, const do
  * and equilibrium distributions. Carries out BGK update.
  */
 void doCollision(std::vector<double> &distributions, const std::vector<double> &mass,
-                 const std::vector<flag_t> &flagField, double tau, const coord_t &length,
-                 gridSet_t &filled, gridSet_t &emptied);
+                 std::vector<double> &density, const std::vector<flag_t> &flagField, double tau,
+                 const coord_t &length, gridSet_t &filled, gridSet_t &emptied);
 #endif

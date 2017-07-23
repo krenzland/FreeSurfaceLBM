@@ -125,7 +125,8 @@ void initialiseFlagField(std::vector<flag_t> &flagField, const char *geometryFil
 }
 
 void initialiseInterface(std::vector<double> &distributions, std::vector<double> &mass,
-                         std::vector<flag_t> &flags, const coord_t &length) {
+                         std::vector<double> &density, const coord_t &length,
+                         std::vector<flag_t> &flags) {
     // Idea: Treat all empty cells as recently emptied cells and let the free surface code deal with
     // it.
     // While it works, it is pretty slow. It is fast enough because it happens only for the first
@@ -145,7 +146,7 @@ void initialiseInterface(std::vector<double> &distributions, std::vector<double>
         }
     }
     auto filled = gridSet_t(); // We have no recently filled cells.
-    flagReinit(distributions, mass, flags, filled, emptied, length);
+    flagReinit(distributions, mass, density, filled, emptied, length, flags);
 }
 
 std::vector<double> initialiseMassField(std::vector<flag_t> &flags, const coord_t &length) {

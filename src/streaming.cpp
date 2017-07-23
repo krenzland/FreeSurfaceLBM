@@ -12,8 +12,8 @@ int neighbouring_fi_cell_index(int x, int y, int z, int fi, const coord_t &lengt
 }
 
 void doStreaming(const std::vector<double> &collideField, std::vector<double> &streamField,
-                 const std::vector<double> &mass, const std::vector<flag_t> &flagField,
-                 const coord_t &length) {
+                 const std::vector<double> &mass, std::vector<double> &density,
+                 const coord_t &length, const std::vector<flag_t> &flagField) {
     for (int z = 0; z < length[2] + 2; ++z) {
         for (int y = 0; y < length[1] + 2; ++y) {
             for (int x = 0; x < length[0] + 2; ++x) {
@@ -38,7 +38,9 @@ void doStreaming(const std::vector<double> &collideField, std::vector<double> &s
                     // 2. To preserve balance, we need to reconstruct distributions along the
                     // interface-normal.
                     const auto coord = coord_t{x, y, z};
-                    const auto normal = computeSurfaceNormal(collideField, mass, coord, length);
+                    // Density contains the densities of the previous timestep!
+                    const auto normal =
+                        computeSurfaceNormal(collideField, density, coord, length, mass);
 
                     for (int i = 0; i < Q; ++i) {
                         const auto &vel = LATTICEVELOCITIES[i];

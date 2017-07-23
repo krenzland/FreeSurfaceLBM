@@ -30,6 +30,7 @@ void initialiseFlagField(std::vector<flag_t> &flagField, const char *geometryFil
 std::vector<double> initialiseMassField(std::vector<flag_t> &flags, const coord_t &length);
 
 void initialiseInterface(std::vector<double> &distributions, std::vector<double> &mass,
-                         std::vector<flag_t> &flags, const coord_t &length);
+                         std::vector<double> &density, const coord_t &length,
+                         std::vector<flag_t> &flags);
 
 #endif
