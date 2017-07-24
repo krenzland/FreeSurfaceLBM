@@ -4,15 +4,17 @@
 #include "freeSurface.hpp"
 #include "initLB.hpp"
 #include "streaming.hpp"
+#include "timeStep.hpp"
 #include <cassert>
 #include <chrono>
 
 int main(int argc, char *argv[]) {
     coord_t length;
-    coord_t procs; // Number of processes for each direction.
     int timesteps;
     int timestepsPerPlotting;
+    double stepSize = 1.0;
     double tau;
+    std::array<double, 3> gravity;
     boundary_t boundaryConditions;
     std::string scenario;
 
@@ -24,7 +26,7 @@ int main(int argc, char *argv[]) {
     // Parse the scenario configuration.
     assert(argc == 2); // 1: parameter file
 
-    readParameters(length, procs, tau, boundaryConditions, timesteps, timestepsPerPlotting,
+    readParameters(length, tau, gravity, boundaryConditions, timesteps, timestepsPerPlotting,
                    scenario, argv[1], verbose);
 
     // Surround with ghost/boundary cells.
@@ -44,6 +46,10 @@ int main(int argc, char *argv[]) {
     auto writer = VtkWriter("results/output", length);
     writer.write(collideField, mass, density, flagField, 0);
 
+    // We only adapt the time step every few iterations. This here is a heuristic that seems to work
+    // in practice.
+    const int rescaleDelay =
+        static_cast<int>(4.0 * std::pow(length[0] * length[1] * length[2], 1.0 / 3.0));
     for (int t = 1; t < timesteps; ++t) {
         auto filled = gridSet_t();
         auto emptied = gridSet_t();
@@ -52,12 +58,18 @@ int main(int argc, char *argv[]) {
                    mass); // Maybe do after normal streaming?
         doStreaming(collideField, streamField, mass, density, length, flagField);
         std::swap(collideField, streamField);
-        // TODO: Reconstruct boundaries for interface cells.
-        doCollision(collideField, mass, density, flagField, tau, length, filled, emptied);
+        doCollision(collideField, mass, density, flagField, tau, gravity, length, filled, emptied);
         getPotentialUpdates(mass, density, filled, emptied, length);
-        flagReinit(collideField, mass, density, filled, emptied, length,
-                   flagField); // TODO: Finish implementation!
+        flagReinit(collideField, mass, density, filled, emptied, length, flagField);
         distributeMass(collideField, mass, density, filled, emptied, length, flagField);
+
+        if (t % rescaleDelay == 0) {
+            std::tie(tau, stepSize) =
+                adaptTimestep(collideField, density, mass, flagField, tau, stepSize, gravity);
+            std::cout << "It = " << t << " stepSize = " << stepSize << " tau = " << tau
+                      << std::endl;
+        }
+
         treatBoundary(collideField, flagField, boundaryConditions, length);
 
         if (!(t % timestepsPerPlotting)) {

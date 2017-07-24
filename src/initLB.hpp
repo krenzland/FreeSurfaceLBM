@@ -9,9 +9,8 @@
 /* reads the parameters for the lid driven cavity scenario from a config file */
 void readParameters(
     coord_t &length,                /* reads domain size. Parameter name: "length" */
-    coord_t &procs,                 /* reads number of processes per dimension. Parameter name
-                                       "xprocs, yprocs, zprocs" */
     double &tau,                    /* relaxation parameter tau. Parameter name: "tau" */
+    std::array<double, 3> &gravity, /* force acting on all cells */
     boundary_t &boundaryConditions, /* contains information about all bcs" */
     int &timesteps,                 /* number of timesteps. Parameter name: "timesteps" */
     int &timestepsPerPlotting,      /* timesteps between subsequent VTK plots.

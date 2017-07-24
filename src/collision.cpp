@@ -12,13 +12,13 @@ void computePostCollisionDistributions(double *currentCell, double tau, const do
 
 void doCollision(std::vector<double> &distributions, const std::vector<double> &mass,
                  std::vector<double> &density, const std::vector<flag_t> &flagField, double tau,
-                 const coord_t &length, gridSet_t &filled, gridSet_t &emptied) {
+                 const std::array<double, 3> &gravity, const coord_t &length, gridSet_t &filled,
+                 gridSet_t &emptied) {
 #pragma omp parallel for
     for (int z = 0; z < length[2] + 2; ++z) {
         double curDensity = 0;
         double velocity[3] = {0};
         double feq[19] = {0};
-        const double gravity[3] = {0, 0, -0.00015};
 
         for (int y = 0; y < length[1] + 2; ++y) {
             for (int x = 0; x < length[0] + 2; ++x) {

@@ -30,7 +30,9 @@ set(sources
         ConfigParser.hpp
         VtkWriter.cpp
         VtkWriter.hpp
-        freeSurface.cpp)
+        freeSurface.cpp
+        timeStep.hpp
+        timeStep.cpp)
 
 add_executable(lbsim ${sources})
 target_include_directories(lbsim PUBLIC ./)

@@ -4,7 +4,8 @@ VtkWriter::VtkWriter(const std::string &filenameRoot, const coord_t &length)
     : filenameRoot(filenameRoot), length(length) {}
 
 void VtkWriter::write(const std::vector<double> &collideField, const std::vector<double> &mass,
-                      const std::vector<double> &density, const std::vector<flag_t> &flagField, int t) {
+                      const std::vector<double> &density, const std::vector<flag_t> &flagField,
+                      int t) {
     std::stringstream filenameBuilder;
     // Filename is of the format name_i_j_k.t, where ijk are the mpi
     filenameBuilder << filenameRoot << "." << t << ".vtk";

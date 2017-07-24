@@ -1,15 +1,11 @@
 # Settings for simulation
-xlength                         80
-ylength                         40
-zlength                         40
+xlength                         50
+ylength                         50
+zlength                         50
 
-xprocs				1
-yprocs				1
-zprocs				1 # ....
-
-timesteps                       4000
-timestepsPerPlotting            400
-tau                             0.7 # kjkl
+timesteps                       5000
+timestepsPerPlotting            500
+tau                             0.7
 
 # Boundary Conditions
 bcLeft                          NO_SLIP
@@ -31,3 +27,8 @@ velocityInY                     0.0
 velocityInZ                     0.0
 
 pressureIn                      0.0
+
+# External forces
+gravityX			0.0
+gravityY			0.0
+gravityZ			-0.00015
