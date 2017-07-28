@@ -10,10 +10,9 @@
 #include <vector>
 using gridSet_t = std::unordered_set<coord_t>;
 
-std::array<double, 3> computeSurfaceNormal(const std::vector<double> &distributions,
-                                           const std::vector<double> &density,
-                                           const coord_t &position, const coord_t &length,
-                                           const std::vector<double> &mass);
+std::array<double, 3> computeSurfaceNormal(const std::vector<double> &distributions, const std::vector<double> &density,
+                                           const std::vector<flag_t> &flags, const coord_t &length,
+                                           const std::vector<double> &mass, const coord_t &position);
 
 void streamMass(const std::vector<double> &distributions, const std::vector<double> &density,
                 const std::vector<flag_t> &flags, const coord_t &length, std::vector<double> &mass);

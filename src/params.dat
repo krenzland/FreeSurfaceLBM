@@ -1,19 +1,19 @@
 # Settings for simulation
-xlength                         30
-ylength                         30
-zlength                         30
+xlength                         50
+ylength                         50
+zlength                         50
 
 timesteps                       2000
 timestepsPerPlotting            20
-tau                             0.55
+tau                             0.9
 
 # Boundary Conditions
-bcLeft                          FREE_SLIP
-bcRight                         FREE_SLIP
-bcTop                           FREE_SLIP
-bcBottom                        FREE_SLIP
-bcFront                         FREE_SLIP
-bcBack                          FREE_SLIP
+bcLeft                          NO_SLIP
+bcRight                         NO_SLIP
+bcTop                           NO_SLIP
+bcBottom                        NO_SLIP
+bcFront                         NO_SLIP
+bcBack                          NO_SLIP
 
 # Settings for scenarios
 scenario                        scenarios/empty
@@ -31,4 +31,4 @@ pressureIn                      0.0
 # External forces
 gravityX			0.0
 gravityY			0.0
-gravityZ			-0.00015
+gravityZ			-0.0002

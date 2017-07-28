@@ -75,32 +75,32 @@ void initialiseFlagField(std::vector<flag_t> &flagField, const std::string &geom
     for (int z = 1; z < length[2] + 1; ++z) {
         for (int y = 1; y < length[1] + 1; ++y) {
             for (int x = length[0] / 4; x < length[0] + 1; ++x) {
+            break;
                 flagField[indexForCell(x, y, z, length)] = flag_t::EMPTY;
             }
         }
     }
-/* // Falling droplet
-const int middleX = length[0] / 2;
-const int middleY = length[1] / 2;
-const int heightZ = 2 * (length[2] / 3);
-const int radius = 10;
-for (int z = 1; z < length[2] + 1; ++z) {
-    for (int y = 1; y < length[1] + 1; ++y) {
-        for (int x = 1; x < length[0] + 1; ++x) {
-            flag_t entry = flag_t::EMPTY;
-            const double distance = std::sqrt(
-                std::pow(middleX - x, 2) + std::pow(middleY - y, 2) + std::pow(heightZ - z, 2));
-            if (distance <= radius) {
-                //entry = flag_t::FLUID;
+    const int middleX = length[0] / 2;
+    const int middleY = length[1] / 2;
+    const int heightZ = 2 * (length[2] / 3);
+    const int radius = 10;
+    for (int z = 1; z < length[2] + 1; ++z) {
+        for (int y = 1; y < length[1] + 1; ++y) {
+            for (int x = 1; x < length[0] + 1; ++x) {
+                flag_t entry = flag_t::EMPTY;
+                const double distance = std::sqrt(
+                        std::pow(middleX - x, 2) + std::pow(middleY - y, 2) + std::pow(heightZ - z, 2));
+                if (distance <= radius) {
+                    entry = flag_t::FLUID;
+                }
+                if (z <= length[2]/10) {
+                    entry = flag_t::FLUID;
+                }
+                flagField[indexForCell(x, y, z, length)] = entry;
             }
-            if (z <= length[2]/5) {
-                entry = flag_t::FLUID;
-            }
-            flagField[indexForCell(x, y, z, length)] = entry;
         }
     }
-}
-*/
+
 
 // We surround our entire geometry with a real boundary layer.
 #pragma omp parallel for

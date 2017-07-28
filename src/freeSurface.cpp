@@ -2,10 +2,9 @@
 #include <iostream>
 #include <numeric>
 
-std::array<double, 3> computeSurfaceNormal(const std::vector<double> &distributions,
-                                           const std::vector<double> &density,
-                                           const coord_t &position, const coord_t &length,
-                                           const std::vector<double> &mass) {
+std::array<double, 3> computeSurfaceNormal(const std::vector<double> &distributions, const std::vector<double> &density,
+                                           const std::vector<flag_t> &flags, const coord_t &length,
+                                           const std::vector<double> &mass, const coord_t &position) {
     auto normal = std::array<double, 3>();
     // We approximate the surface normal element-wise using central-differences of the fluid
     // fraction gradient.
@@ -18,18 +17,21 @@ std::array<double, 3> computeSurfaceNormal(const std::vector<double> &distributi
         curPosition[dim] -= 2;
         const auto prevNeighbour = indexForCell(curPosition, length);
 
-        const double plusDensity = density[nextNeighbour];
-        const double minusDensity = density[prevNeighbour];
-
         double plusFluidFraction = 0.0;
-        if (mass[nextNeighbour] != 0.0) {
-            plusFluidFraction = plusDensity / mass[nextNeighbour];
+        if (flags[nextNeighbour] == flag_t::FLUID) {
+            plusFluidFraction = 1.0;
+        } else if (flags[nextNeighbour] == flag_t::INTERFACE) {
+            plusFluidFraction = mass[nextNeighbour] / density[nextNeighbour];
         }
-
         double minusFluidFraction = 0.0;
-        if (mass[prevNeighbour] != 0.0) {
-            minusFluidFraction = minusDensity / mass[prevNeighbour];
+        if (flags[prevNeighbour] == flag_t::FLUID) {
+            minusFluidFraction = 1.0;
+        } else if (flags[prevNeighbour] == flag_t::INTERFACE) {
+            minusFluidFraction = mass[prevNeighbour] / density[prevNeighbour];
         }
+        plusFluidFraction = std::min(1.0, std::max(0.0, plusFluidFraction));
+        minusFluidFraction = std::min(1.0, std::max(0.0, minusFluidFraction));
+
         normal[dim] = 0.5 * (minusFluidFraction - plusFluidFraction);
     }
     return normal;
@@ -44,7 +46,7 @@ void streamMass(const std::vector<double> &distributions, const std::vector<doub
             for (int x = 0; x < length[0] + 2; ++x) {
                 double deltaMass = 0.0;
 
-                const coord_t curCell = coord_t{x, y, z};
+                //const coord_t curCell = coord_t{x, y, z};
                 const int flagIndex = indexForCell(x, y, z, length);
                 // We only consider the mass going into interface cells.
                 // Empty cells have zero mass, full cells have mass 1.
@@ -70,10 +72,10 @@ void streamMass(const std::vector<double> &distributions, const std::vector<doub
                         const double neighFluidFraction = mass[neighFlag] / neighDensity;
                         // Exchange interface and interface at x + \Delta t e_i (eq. 4.2)
                         // TODO: (maybe) substitute s_e with values from table 4.1
-//                        const double s_e = distributions[neighFlag * Q + inverseVelocityIndex(i)] -
+                        const double s_e = distributions[neighFlag * Q + inverseVelocityIndex(i)] -
                                            distributions[fieldIndex + i];
 
-                        const double s_e = calculateSE(distributions, flags, curCell, length, i);
+                        //const double s_e = calculateSE(distributions, flags, curCell, length, i);
                         deltaMass += s_e * 0.5 * (curFluidFraction + neighFluidFraction);
                     }
                 }
@@ -317,7 +319,8 @@ void distributeSingleMass(const std::vector<double> &distributions, std::vector<
        then, in a second step, update the weights.*/
 
     // Step 1: Calculate the unnormalized weights.
-    const auto normal = computeSurfaceNormal(distributions, density, coord, length, mass);
+    const auto normal = computeSurfaceNormal(distributions, density, flags, length, mass,
+                                             coord);
     std::array<double, 19> weights{};
 
     for (size_t i = 0; i < LATTICEVELOCITIES.size(); ++i) {

@@ -49,14 +49,13 @@ int main(int argc, char *argv[]) {
     // We only adapt the time step every few iterations. This here is a heuristic that seems to work
     // in practice.
     const int rescaleDelay =
-        static_cast<int>(4.0 * std::pow(length[0] * length[1] * length[2], 1.0 / 3.0));
+        static_cast<int>(4.0 * std::pow(length[0] * length[1] * length[2], 1.0 / 3.0))*0 + 1;
     for (int t = 1; t < timesteps; ++t) {
         auto filled = gridSet_t();
         auto emptied = gridSet_t();
 
-        streamMass(streamField, density, flagField, length,
-                   mass); // Maybe do after normal streaming?
         doStreaming(collideField, streamField, mass, density, length, flagField);
+        streamMass(streamField, density, flagField, length, mass); // Maybe do after normal streaming?
         std::swap(collideField, streamField);
         doCollision(collideField, mass, density, flagField, tau, gravity, length, filled, emptied);
         getPotentialUpdates(mass, density, filled, emptied, length);
