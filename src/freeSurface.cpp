@@ -44,6 +44,7 @@ void streamMass(const std::vector<double> &distributions, const std::vector<doub
             for (int x = 0; x < length[0] + 2; ++x) {
                 double deltaMass = 0.0;
 
+                const coord_t curCell = coord_t{x, y, z};
                 const int flagIndex = indexForCell(x, y, z, length);
                 // We only consider the mass going into interface cells.
                 // Empty cells have zero mass, full cells have mass 1.
@@ -69,8 +70,10 @@ void streamMass(const std::vector<double> &distributions, const std::vector<doub
                         const double neighFluidFraction = mass[neighFlag] / neighDensity;
                         // Exchange interface and interface at x + \Delta t e_i (eq. 4.2)
                         // TODO: (maybe) substitute s_e with values from table 4.1
-                        const double s_e = distributions[neighFlag * Q + inverseVelocityIndex(i)] -
+//                        const double s_e = distributions[neighFlag * Q + inverseVelocityIndex(i)] -
                                            distributions[fieldIndex + i];
+
+                        const double s_e = calculateSE(distributions, flags, curCell, length, i);
                         deltaMass += s_e * 0.5 * (curFluidFraction + neighFluidFraction);
                     }
                 }
@@ -78,6 +81,73 @@ void streamMass(const std::vector<double> &distributions, const std::vector<doub
             }
         }
     }
+}
+
+double calculateSE(const std::vector<double> &distributions, const std::vector<flag_t> &flags,
+                   const coord_t &curCell, const coord_t &length, const int curFiIndex) {
+
+    // TODO: dont need to check the type every time, once is enough
+    //check cell type of x
+    bool x_hasNoFluidNeigh = true;
+    bool x_hasNoEmptyNeigh = true;
+    for (int i = 0; i < Q; ++i) {
+        const auto &vel = LATTICEVELOCITIES[i];
+        const auto x_nb = coord_t{curCell[0] + vel[0], curCell[1] + vel[1], curCell[2] + vel[2]};
+        const auto x_nb_flag = indexForCell(x_nb, length);
+
+        if (flags[x_nb_flag] == flag_t::FLUID) {
+            x_hasNoFluidNeigh = false;
+        }
+        if (flags[x_nb_flag] == flag_t::EMPTY) {
+            x_hasNoEmptyNeigh = false;
+        }
+    }
+
+    const auto &vel = LATTICEVELOCITIES[curFiIndex];
+    const auto x_nb = coord_t{curCell[0] + vel[0], curCell[1] + vel[1], curCell[2] + vel[2]};
+
+    //check for cell type of x_nb
+    bool x_nb_hasNoFluidNeigh = true;
+    bool x_nb_hasNoEmptyNeigh = true;
+    for (int i = 0; i < Q; ++i) {
+        const auto &v = LATTICEVELOCITIES[i];
+        const auto xnb_nb = coord_t{x_nb[0] + v[0], x_nb[1] + v[1], x_nb[2] + v[2]};
+        const auto xnb_nb_flag = indexForCell(xnb_nb, length);
+
+        if (flags[xnb_nb_flag] == flag_t::FLUID) {
+            x_nb_hasNoFluidNeigh = false;
+        }
+        if (flags[xnb_nb_flag] == flag_t::EMPTY) {
+            x_nb_hasNoEmptyNeigh = false;
+        }
+    }
+
+    bool x_isStandardCell = !(x_hasNoFluidNeigh && x_hasNoEmptyNeigh);
+    bool x_nb_isStandardCell = !(x_nb_hasNoFluidNeigh && x_nb_hasNoEmptyNeigh);
+    
+    if ((x_isStandardCell && x_nb_isStandardCell) ||
+        (x_hasNoFluidNeigh && x_nb_hasNoFluidNeigh) ||
+        (x_hasNoEmptyNeigh && x_hasNoFluidNeigh)) {
+
+        return distributions[indexForCell(x_nb, length) * Q + inverseVelocityIndex(curFiIndex)] -
+                distributions[indexForCell(curCell, length) * Q + curFiIndex];
+    }
+
+    if ((x_isStandardCell && x_nb_hasNoFluidNeigh) ||
+        (x_hasNoEmptyNeigh && x_nb_isStandardCell) ||
+        (x_hasNoEmptyNeigh && x_nb_hasNoFluidNeigh)) {
+
+        return distributions[indexForCell(x_nb, length) * Q + inverseVelocityIndex(curFiIndex)];
+    }
+
+    if ((x_isStandardCell && x_nb_hasNoEmptyNeigh) ||
+        (x_hasNoFluidNeigh && x_nb_isStandardCell) ||
+        (x_hasNoFluidNeigh && x_nb_hasNoEmptyNeigh)) {
+        return -distributions[indexForCell(curCell, length) * Q + curFiIndex];
+    }
+
+    return distributions[indexForCell(x_nb, length) * Q + inverseVelocityIndex(curFiIndex)] -
+           distributions[indexForCell(curCell, length) * Q + curFiIndex];
 }
 
 void getPotentialUpdates(const std::vector<double> &mass, const std::vector<double> &density,

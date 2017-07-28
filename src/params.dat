@@ -1,19 +1,19 @@
 # Settings for simulation
-xlength                         50
-ylength                         50
-zlength                         50
+xlength                         30
+ylength                         30
+zlength                         30
 
-timesteps                       5000
-timestepsPerPlotting            500
-tau                             0.7
+timesteps                       2000
+timestepsPerPlotting            20
+tau                             0.55
 
 # Boundary Conditions
-bcLeft                          NO_SLIP
-bcRight                         NO_SLIP
-bcTop                           NO_SLIP
-bcBottom                        NO_SLIP
-bcFront                         NO_SLIP
-bcBack                          NO_SLIP
+bcLeft                          FREE_SLIP
+bcRight                         FREE_SLIP
+bcTop                           FREE_SLIP
+bcBottom                        FREE_SLIP
+bcFront                         FREE_SLIP
+bcBack                          FREE_SLIP
 
 # Settings for scenarios
 scenario                        scenarios/empty

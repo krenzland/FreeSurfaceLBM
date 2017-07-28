@@ -54,7 +54,7 @@ int main(int argc, char *argv[]) {
         auto filled = gridSet_t();
         auto emptied = gridSet_t();
 
-        streamMass(collideField, density, flagField, length,
+        streamMass(streamField, density, flagField, length,
                    mass); // Maybe do after normal streaming?
         doStreaming(collideField, streamField, mass, density, length, flagField);
         std::swap(collideField, streamField);
