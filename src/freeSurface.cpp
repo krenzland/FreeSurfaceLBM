@@ -7,6 +7,7 @@ double computeFluidFraction(const std::vector<double> &density, const std::vecto
    if (flags[idx] == flag_t::EMPTY) {
        return 0.0;
    } else if (flags[idx] == flag_t::INTERFACE) {
+       assert(density[idx] != 0.0);
        const double vof = mass[idx]/density[idx];
        // in some cases it can be negative or larger than 1, e.g. if the cell is recently filled.
        return std::min(1.0, std::max(0.0, vof));
@@ -55,8 +56,7 @@ void streamMass(const std::vector<double> &distributions, const std::vector<doub
                     continue;
 
                 const int fieldIndex = flagIndex * Q;
-                const double curDensity = density[flagIndex];
-                const double curFluidFraction = mass[flagIndex] / curDensity;
+                const double curFluidFraction = computeFluidFraction(density, mass, flags, flagIndex);
 
                 for (int i = 0; i < Q; ++i) {
                     const auto &vel = LATTICEVELOCITIES[i];
@@ -70,8 +70,7 @@ void streamMass(const std::vector<double> &distributions, const std::vector<doub
                         deltaMass += distributions[neighField + inverseVelocityIndex(i)] -
                                      distributions[fieldIndex + i];
                     } else if (flags[neighFlag] == flag_t::INTERFACE) {
-                        const double neighDensity = density[neighFlag];
-                        const double neighFluidFraction = mass[neighFlag] / neighDensity;
+                        const double neighFluidFraction = computeFluidFraction(density, mass, flags, neighFlag);
                         // Exchange interface and interface at x + \Delta t e_i (eq. 4.2)
                         // TODO: (maybe) substitute s_e with values from table 4.1
                         const double s_e = distributions[neighFlag * Q + inverseVelocityIndex(i)] -
@@ -183,10 +182,9 @@ void interpolateEmptyCell(std::vector<double> &distributions, std::vector<double
                           const std::vector<coord_t> &toBalance, const coord_t &length,
                           const std::vector<flag_t> &flags) {
 // Note: We only interpolate cells that are not emptied cells themselves!
-#pragma omp parallel for
     for (size_t i = 0; i < toBalance.size(); ++i) {
         const auto &cell = toBalance[i];
-        const int flagIndex = indexForCell(cell[0], cell[1], cell[2], length);
+        const int flagIndex = indexForCell(cell, length);
         const int cellIndex = flagIndex * Q;
 
         int numNeighs = 0;
@@ -215,7 +213,7 @@ void interpolateEmptyCell(std::vector<double> &distributions, std::vector<double
             }
         }
 
-        // Every empty cell has at least one interface cell as neighbour, otherwise we have a
+        // Every former empty cell has at least one interface cell as neighbour, otherwise we have a
         // worse problem than division by zero.
         assert(numNeighs != 0);
         avgDensity /= numNeighs;

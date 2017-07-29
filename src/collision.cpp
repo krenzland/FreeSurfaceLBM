@@ -30,7 +30,6 @@ void doCollision(std::vector<double> &distributions, std::vector<double> &mass,
                 const int distrIndex = flagIndex * Q;
 
                 curDensity = computeDensity(&distributions[distrIndex]);
-                density[flagIndex] = curDensity;
                 computeVelocity(&distributions[distrIndex], curDensity, velocity);
                 // apply gravity to velocity
                 for (int i = 0; i < 3; ++i) {
@@ -39,10 +38,12 @@ void doCollision(std::vector<double> &distributions, std::vector<double> &mass,
                 computeFeq(curDensity, velocity, feq);
                 computePostCollisionDistributions(&distributions[distrIndex], tau, feq);
 
+                curDensity = computeDensity(&distributions[distrIndex]);
                 // Set mass equal to density to avoid numerical instabilities.
                 if (flagField[flagIndex] == flag_t::FLUID) {
                     mass[flagIndex] = curDensity;
                 }
+                density[flagIndex] = curDensity;
             }
         }
     }

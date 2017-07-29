@@ -48,6 +48,8 @@ void doStreaming(const std::vector<double> &collideField, std::vector<double> &s
                         const auto &vel = LATTICEVELOCITIES[i];
                         const int neighFlag =
                             indexForCell(coord_t{x - vel[0], y - vel[1], z - vel[2]}, length);
+                        if (flagIndex == neighFlag) continue;
+
                         const bool isEmptyAdjacent = flagField[neighFlag] == flag_t::EMPTY;
 
                         const int inv = inverseVelocityIndex(i);
@@ -62,8 +64,7 @@ void doStreaming(const std::vector<double> &collideField, std::vector<double> &s
                             // We need to reconstruct this distribution with eq. (4.5).
                             const double atmosphericPressure = 1.0;
                             // Note that we have to calculate the velocity of the time step before,
-                            // hence the choice
-                            // of distribution field.
+                            // hence the choice of distribution field.
                             const double curDensity = density[flagIndex];
                             std::array<double, 3> velocity;
                             computeVelocity(&collideField[fieldIndex], curDensity, velocity.data());

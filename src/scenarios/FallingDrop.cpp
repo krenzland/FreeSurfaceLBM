@@ -19,7 +19,7 @@ void FallingDrop::getFlagField(std::vector<flag_t> &flags, const coord_t &length
                 if (distance <= dropRadius) {
                     entry = flag_t::FLUID;
                 }
-                if (z <= length[2]/10) {
+                if (z <= waterHeight) {
                     entry = flag_t::FLUID;
                 }
                 flags[indexForCell(x, y, z, length)] = entry;
