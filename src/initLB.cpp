@@ -143,7 +143,7 @@ std::vector<double> initialiseMassField(std::vector<flag_t> &flags, const coord_
             // Density in first timestep is 1 for fluid cells.
             mass[i] = 1.0;
         } else if (flags[i] == flag_t::INTERFACE) {
-            mass[i] = 0.5;
+            mass[i] = 0.5; // Arbitrary value, doesn't get converted too soon.
         } else {
             mass[i] = 0.0;
         }

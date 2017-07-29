@@ -2,6 +2,19 @@
 #include <iostream>
 #include <numeric>
 
+double computeFluidFraction(const std::vector<double> &density, const std::vector<double> &mass,
+                            const std::vector<flag_t> &flags, int idx) {
+   if (flags[idx] == flag_t::EMPTY) {
+       return 0.0;
+   } else if (flags[idx] == flag_t::INTERFACE) {
+       const double vof = mass[idx]/density[idx];
+       // in some cases it can be negative or larger than 1, e.g. if the cell is recently filled.
+       return std::min(1.0, std::max(0.0, vof));
+   } else {
+       return 1.0;
+   }
+}
+
 std::array<double, 3> computeSurfaceNormal(const std::vector<double> &distributions, const std::vector<double> &density,
                                            const std::vector<flag_t> &flags, const coord_t &length,
                                            const std::vector<double> &mass, const coord_t &position) {
@@ -17,20 +30,8 @@ std::array<double, 3> computeSurfaceNormal(const std::vector<double> &distributi
         curPosition[dim] -= 2;
         const auto prevNeighbour = indexForCell(curPosition, length);
 
-        double plusFluidFraction = 0.0;
-        if (flags[nextNeighbour] == flag_t::FLUID) {
-            plusFluidFraction = 1.0;
-        } else if (flags[nextNeighbour] == flag_t::INTERFACE) {
-            plusFluidFraction = mass[nextNeighbour] / density[nextNeighbour];
-        }
-        double minusFluidFraction = 0.0;
-        if (flags[prevNeighbour] == flag_t::FLUID) {
-            minusFluidFraction = 1.0;
-        } else if (flags[prevNeighbour] == flag_t::INTERFACE) {
-            minusFluidFraction = mass[prevNeighbour] / density[prevNeighbour];
-        }
-        plusFluidFraction = std::min(1.0, std::max(0.0, plusFluidFraction));
-        minusFluidFraction = std::min(1.0, std::max(0.0, minusFluidFraction));
+        const double plusFluidFraction = computeFluidFraction(density, mass, flags, nextNeighbour);
+        const double minusFluidFraction = computeFluidFraction(density, mass, flags, prevNeighbour);
 
         normal[dim] = 0.5 * (minusFluidFraction - plusFluidFraction);
     }
@@ -62,6 +63,7 @@ void streamMass(const std::vector<double> &distributions, const std::vector<doub
                     const auto neighCell = coord_t{x + vel[0], y + vel[1], z + vel[2]};
                     const auto neighFlag = indexForCell(neighCell, length);
                     const auto neighField = neighFlag * Q;
+                    if (neighFlag == flagIndex) continue;
 
                     if (flags[neighFlag] == flag_t::FLUID) {
                         // Exchange interface and fluid at x + \Delta t e_i (eq. 4.2)
@@ -195,6 +197,8 @@ void interpolateEmptyCell(std::vector<double> &distributions, std::vector<double
             const auto neigh = coord_t{cell[0] + vel[0], cell[1] + vel[1], cell[2] + vel[2]};
 
             const int neighFlagIndex = indexForCell(neigh, length);
+            if (neighFlagIndex == flagIndex) continue; // Ignore current cell!
+
             if (flags[neighFlagIndex] == flag_t::FLUID ||
                 flags[neighFlagIndex] == flag_t::INTERFACE) {
                 const int neighDistrIndex = neighFlagIndex * Q;
@@ -238,19 +242,22 @@ void flagReinit(std::vector<double> distributions, std::vector<double> &mass,
     auto toBalance = std::vector<coord_t>();
 
     for (const auto &elem : filled) {
+        const int curFlag = indexForCell(elem, length);
         // Find all neighbours of this cell.
         for (const auto &vel : LATTICEVELOCITIES) {
             coord_t neighbor = elem;
             neighbor[0] += vel[0];
             neighbor[1] += vel[1];
             neighbor[2] += vel[2];
-            const int neighFlag = indexForCell(neighbor[0], neighbor[1], neighbor[2], length);
+            const int neighFlag = indexForCell(neighbor, length);
+            if (curFlag == neighFlag) continue;
             // This neighbor is converted to an interface cell iff. it is an empty cell or a cell
             // that would become an emptied cell.
             // We need to remove it from the emptied set, otherwise we might have holes in the
             // interface.
             if (flags[neighFlag] == flag_t::EMPTY) {
                 flags[neighFlag] = flag_t::INTERFACE;
+                mass[neighFlag] = 0.0;
                 // Notice that the new interface cells don't have any valid distributions.
                 // They are initialised with f^{eq}_i (p_{avg}, v_{avg}), which are the average
                 // density and velocity of all neighbouring fluid and interface cells.
@@ -261,7 +268,6 @@ void flagReinit(std::vector<double> distributions, std::vector<double> &mass,
             }
         }
         // Now we can convert the cell itself to a fluid cell.
-        const int curFlag = indexForCell(elem, length);
         flags[curFlag] = flag_t::FLUID;
     }
 
@@ -273,6 +279,7 @@ void flagReinit(std::vector<double> distributions, std::vector<double> &mass,
             const auto neighFlag = indexForCell(neighbor, length);
             if (flags[neighFlag] == flag_t::FLUID) {
                 flags[neighFlag] = flag_t::INTERFACE;
+                mass[neighFlag] = density[neighFlag];
                 // We can reuse the distributions as they are still valid.
             }
         }
@@ -290,8 +297,8 @@ void flagReinit(std::vector<double> distributions, std::vector<double> &mass,
 enum class update_t { FILLED, EMPTIED };
 
 void distributeSingleMass(const std::vector<double> &distributions, std::vector<double> &mass,
-                          const std::vector<double> &density, const update_t &type,
-                          const coord_t &length, const coord_t &coord, std::vector<flag_t> &flags) {
+                          std::vector<double> &massChange, const update_t &type, const coord_t &length,
+                          const coord_t &coord, std::vector<flag_t> &flags, const std::vector<double> &density) {
     // First determine how much mass needs to be redistributed and fix mass of converted cell.
     const int flagIndex = indexForCell(coord, length);
     double excessMass;
@@ -322,14 +329,17 @@ void distributeSingleMass(const std::vector<double> &distributions, std::vector<
     const auto normal = computeSurfaceNormal(distributions, density, flags, length, mass,
                                              coord);
     std::array<double, 19> weights{};
+    std::array<double, 19> weightsBackup{}; // Sometimes first weights is all zero.
 
     for (size_t i = 0; i < LATTICEVELOCITIES.size(); ++i) {
         const auto &vel = LATTICEVELOCITIES[i];
         coord_t neighbor = {coord[0] + vel[0], coord[1] + vel[1], coord[2] + vel[2]};
 
         const int neighFlag = indexForCell(neighbor, length);
-        if (flags[neighFlag] != flag_t::INTERFACE)
+        if (flagIndex == neighFlag || flags[neighFlag] != flag_t::INTERFACE)
             continue;
+
+        weightsBackup[i] = 1.0;
 
         const double dotProduct = normal[0] * vel[0] + normal[1] * vel[1] + normal[2] * vel[2];
         if (type == update_t::FILLED) {
@@ -341,11 +351,24 @@ void distributeSingleMass(const std::vector<double> &distributions, std::vector<
     }
 
     // Step 2: Calculate normalizer (otherwise sum of weights != 1.0)
-    const double normalizer =
+    double normalizer =
         std::accumulate(weights.begin(), weights.end(), 0.0, std::plus<double>());
 
-    if (normalizer == 0.0)
-        return; // TODO: Is this a good thing to do? This corner case isn't mentioned in the paper.
+    if (normalizer == 0.0) {
+        // Mass cannot be distributed along the normal, distribute to all interface cells equally.
+        weights = weightsBackup;
+        normalizer = std::accumulate(weights.begin(), weights.end(), 0.0, std::plus<double>());
+    }
+    if (normalizer == 0.0) {
+        // Mass cannot be distributed even with the backup plan, it's leaked now.
+        static double lostMass;
+
+        #pragma omp critical
+        { lostMass += std::abs(excessMass); } // TODO: Remove debugging.
+
+        std::cout << "Lost " << lostMass << " mass!" << std::endl;
+        return;
+    }
 
     // Step 3: Redistribute weights. As non-interface cells have weight 0, we can just loop through
     // all cells.
@@ -354,7 +377,7 @@ void distributeSingleMass(const std::vector<double> &distributions, std::vector<
         coord_t neighbor = {coord[0] + vel[0], coord[1] + vel[1], coord[2] + vel[2]};
 
         const int neighFlag = indexForCell(neighbor, length);
-        mass[neighFlag] += (weights[i] / normalizer) * excessMass;
+        massChange[neighFlag] += (weights[i] / normalizer) * excessMass;
     }
 }
 
@@ -365,11 +388,19 @@ void distributeMass(const std::vector<double> &distributions, std::vector<double
     // It is important that we get a copy of the filled/emptied where all converted cells are stored
     // and no other cells.
     // This excludes emptied cells that are used as interface cells instead!
+    auto massChange = std::vector<double>(mass.size(), 0.0);
 
     for (auto &&coord : filled) {
-        distributeSingleMass(distributions, mass, density, update_t::FILLED, length, coord, flags);
+        distributeSingleMass(distributions, mass, massChange, update_t::FILLED, length,
+                             coord, flags, density);
     }
     for (auto &&coord : emptied) {
-        distributeSingleMass(distributions, mass, density, update_t::EMPTIED, length, coord, flags);
+        distributeSingleMass(distributions, mass, massChange, update_t::EMPTIED, length,
+                             coord, flags, density);
+    }
+
+#pragma omp parallel for
+    for (size_t i = 0; i < mass.size(); ++i) {
+        mass[i] += massChange[i];
     }
 }

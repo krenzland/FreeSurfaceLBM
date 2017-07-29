@@ -47,16 +47,16 @@ void doStreaming(const std::vector<double> &collideField, std::vector<double> &s
                     for (int i = 0; i < Q; ++i) {
                         const auto &vel = LATTICEVELOCITIES[i];
                         const int neighFlag =
-                            indexForCell(coord_t{x + vel[0], y + vel[1], z + vel[2]}, length);
+                            indexForCell(coord_t{x - vel[0], y - vel[1], z - vel[2]}, length);
                         const bool isEmptyAdjacent = flagField[neighFlag] == flag_t::EMPTY;
 
                         const int inv = inverseVelocityIndex(i);
-                        const auto &invVelocity = LATTICEVELOCITIES[i];
+                        const auto &invVelocity = LATTICEVELOCITIES[inv];
                         const double dotProduct = normal[0] * invVelocity[0] +
                                                   normal[1] * invVelocity[1] +
                                                   normal[2] * invVelocity[2];
 
-                        const bool isNormalDirection = true && dotProduct > 0.0;
+                        const bool isNormalDirection = dotProduct > 0.0;
 
                         if (isEmptyAdjacent || isNormalDirection) {
                             // We need to reconstruct this distribution with eq. (4.5).
@@ -70,8 +70,8 @@ void doStreaming(const std::vector<double> &collideField, std::vector<double> &s
                             std::array<double, Q> feq;
                             computeFeq(atmosphericPressure, velocity.data(), feq.data());
 
-                            streamField[fieldIndex + inv] =
-                                feq[inv] + feq[i] - collideField[fieldIndex + i];
+                            streamField[fieldIndex + i] =
+                                feq[inv] + feq[i] - collideField[fieldIndex + inv];
                         }
                     }
                 }

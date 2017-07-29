@@ -10,7 +10,7 @@ void computePostCollisionDistributions(double *currentCell, double tau, const do
     }
 }
 
-void doCollision(std::vector<double> &distributions, const std::vector<double> &mass,
+void doCollision(std::vector<double> &distributions, std::vector<double> &mass,
                  std::vector<double> &density, const std::vector<flag_t> &flagField, double tau,
                  const std::array<double, 3> &gravity, const coord_t &length, gridSet_t &filled,
                  gridSet_t &emptied) {
@@ -38,6 +38,11 @@ void doCollision(std::vector<double> &distributions, const std::vector<double> &
                 }
                 computeFeq(curDensity, velocity, feq);
                 computePostCollisionDistributions(&distributions[distrIndex], tau, feq);
+
+                // Set mass equal to density to avoid numerical instabilities.
+                if (flagField[flagIndex] == flag_t::FLUID) {
+                    mass[flagIndex] = curDensity;
+                }
             }
         }
     }
