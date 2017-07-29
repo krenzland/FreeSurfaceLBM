@@ -1,8 +1,12 @@
 
+#include <scenarios/OnlyWater.hpp>
+#include <scenarios/DamBreak.hpp>
+#include <scenarios/FallingDrop.hpp>
 #include "initLB.hpp"
 #include "ConfigParser.hpp"
 #include "LBMHelper.hpp"
 #include "freeSurface.hpp"
+#include "scenarios/Scenario.hpp"
 
 boundary_t readBoundaryConditions(ConfigParser &config) {
     boundary_t bc;
@@ -27,7 +31,7 @@ boundary_t readBoundaryConditions(ConfigParser &config) {
 
 void readParameters(coord_t &length, double &tau, std::array<double, 3> &gravity,
                     boundary_t &boundaryConditions, int &timesteps, int &timestepsPerPlotting,
-                    std::string &scenario, char *parameterFile, bool verbose) {
+                    std::unique_ptr<Scenario> &scenario, char *parameterFile, bool verbose) {
     auto config = ConfigParser(std::string(parameterFile), verbose);
 
     length[0] = config.parse<int>("xlength");
@@ -43,7 +47,17 @@ void readParameters(coord_t &length, double &tau, std::array<double, 3> &gravity
 
     tau = config.parse<double>("tau");
 
-    scenario = config.parse<std::string>("scenario");
+    auto scenarioName = config.parse<std::string>("scenario");
+    if (scenarioName == "onlyWater") {
+        scenario = std::make_unique<OnlyWater>();
+    } else if (scenarioName == "damBreak") {
+        scenario = std::make_unique<DamBreak>(config);
+    } else if (scenarioName == "fallingDrop") {
+        scenario = std::make_unique<FallingDrop>(config);
+    } else {
+        throw std::invalid_argument("Invalid scenario!");
+    }
+
     boundaryConditions = readBoundaryConditions(config);
 }
 
@@ -63,45 +77,9 @@ void setBoundaryFlag(std::vector<flag_t> &flagField, int x, int y, int z, const 
     flagField[index] = value;
 }
 
-void initialiseFlagField(std::vector<flag_t> &flagField, const std::string &geometryFile,
-                         const coord_t &length, boundary_t &boundaryConditions, bool verbose) {
-    // TODO: Remove hardcoded dam break thingy and read from file.
-    // Scenario: Dam break. A third of the size of the geometry is filled with water, the other one
-    // not.
-    // Note: The water isn't moving yet, might want to initialise differently!
-    // TODO: Maybe initialise with velocity for dam break.
-
-    // Breaking  dam
-    for (int z = 1; z < length[2] + 1; ++z) {
-        for (int y = 1; y < length[1] + 1; ++y) {
-            for (int x = length[0] / 4; x < length[0] + 1; ++x) {
-            break;
-                flagField[indexForCell(x, y, z, length)] = flag_t::EMPTY;
-            }
-        }
-    }
-    const int middleX = length[0] / 2;
-    const int middleY = length[1] / 2;
-    const int heightZ = 2 * (length[2] / 3);
-    const int radius = 10;
-    for (int z = 1; z < length[2] + 1; ++z) {
-        for (int y = 1; y < length[1] + 1; ++y) {
-            for (int x = 1; x < length[0] + 1; ++x) {
-                flag_t entry = flag_t::EMPTY;
-                const double distance = std::sqrt(
-                        std::pow(middleX - x, 2) + std::pow(middleY - y, 2) + std::pow(heightZ - z, 2));
-                if (distance <= radius) {
-                    entry = flag_t::FLUID;
-                }
-                if (z <= length[2]/10) {
-                    entry = flag_t::FLUID;
-                }
-                flagField[indexForCell(x, y, z, length)] = entry;
-            }
-        }
-    }
-
-
+void initialiseFlagField(std::vector<flag_t> &flagField, std::unique_ptr<Scenario> scenario, boundary_t &boundaryConditions,
+                         bool verbose, const coord_t &length) {
+    scenario->getFlagField(flagField, length);
 // We surround our entire geometry with a real boundary layer.
 #pragma omp parallel for
     for (int z = 0; z < length[2] + 2; ++z) {
@@ -156,9 +134,9 @@ void initialiseInterface(std::vector<double> &distributions, std::vector<double>
 std::vector<double> initialiseMassField(std::vector<flag_t> &flags, const coord_t &length) {
     auto mass = std::vector<double>(flags.size());
 
-// Set mass for empty cells to zero, for fluid cells to the density.
-// Interface cells are generated separately so need no special case.
-// Boundary cells are treated as empty cells, the mass shouldn't matter anyway.
+    // Set mass for empty cells to zero, for fluid cells to the density.
+    // Interface cells are generated separately so need no special case.
+    // Boundary cells are treated as empty cells, the mass shouldn't matter anyway.
 #pragma omp parallel for
     for (size_t i = 0; i < flags.size(); ++i) {
         if (flags[i] == flag_t::FLUID) {

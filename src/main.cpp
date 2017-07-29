@@ -7,6 +7,7 @@
 #include "timeStep.hpp"
 #include <cassert>
 #include <chrono>
+#include <bits/unique_ptr.h>
 
 int main(int argc, char *argv[]) {
     coord_t length;
@@ -16,11 +17,10 @@ int main(int argc, char *argv[]) {
     double tau;
     std::array<double, 3> gravity;
     boundary_t boundaryConditions;
-    std::string scenario;
+    auto scenario = std::unique_ptr<Scenario>(nullptr);
 
     const auto startTime = std::chrono::high_resolution_clock::now();
 
-    // Only show output for first rank.
     const bool verbose = true;
 
     // Parse the scenario configuration.
@@ -39,17 +39,14 @@ int main(int argc, char *argv[]) {
     auto density = std::vector<double>(num_cells, 1.0);
 
     initialiseCollideAndStreamFields(collideField, streamField);
-    initialiseFlagField(flagField, scenario, length, boundaryConditions, verbose);
+    initialiseFlagField(flagField, std::move(scenario), boundaryConditions,
+                        verbose, length);
     auto mass = initialiseMassField(flagField, length);
     initialiseInterface(streamField, mass, density, length, flagField);
 
     auto writer = VtkWriter("results/output", length);
     writer.write(collideField, mass, density, flagField, 0);
 
-    // We only adapt the time step every few iterations. This here is a heuristic that seems to work
-    // in practice.
-    const int rescaleDelay =
-        static_cast<int>(4.0 * std::pow(length[0] * length[1] * length[2], 1.0 / 3.0));
     int realTimeSteps = 0;
     double lastOutput = 0.0;
     int fileNum = 1;
@@ -67,10 +64,12 @@ int main(int argc, char *argv[]) {
         flagReinit(collideField, mass, density, filled, emptied, length, flagField);
         distributeMass(collideField, mass, density, filled, emptied, length, flagField);
 
-        if (realTimeSteps % rescaleDelay == 0) {
-            std::tie(tau, stepSize) =
+        const double stepSizeBefore = stepSize;
+        // TODO: Use a delay for increasing (maybe).
+        std::tie(tau, stepSize) =
                 adaptTimestep(collideField, density, mass, flagField, tau, stepSize, gravity);
-            std::cout << "It = " << t << " stepSize = " << stepSize << " tau = " << tau
+        if (stepSize != stepSizeBefore) {
+            std::cout << "It = " << realTimeSteps << " stepSize = " << stepSize << " tau = " << tau
                       << std::endl;
         }
 
