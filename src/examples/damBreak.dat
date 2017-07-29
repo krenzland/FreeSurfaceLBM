@@ -1,0 +1,35 @@
+# Settings for simulation
+xlength                         30
+ylength                         30
+zlength                         30
+
+timesteps                       2000
+timestepsPerPlotting            50
+tau                             1.2
+
+# Boundary Conditions
+bcLeft                          NO_SLIP
+bcRight                         NO_SLIP
+bcTop                           NO_SLIP
+bcBottom                        NO_SLIP
+bcFront                         NO_SLIP
+bcBack                          NO_SLIP
+
+# Settings for scenarios
+scenario                        damBreak
+damSize				15
+
+velocityWallX                   0.0
+velocityWallY                   0.0
+velocityWallZ                   0.0
+
+velocityInX                     0.0
+velocityInY                     0.0
+velocityInZ                     0.0
+
+pressureIn                      0.0
+
+# External forces
+gravityX			0.0
+gravityY			0.0
+gravityZ			-0.0005
