@@ -49,8 +49,13 @@ int main(int argc, char *argv[]) {
     // We only adapt the time step every few iterations. This here is a heuristic that seems to work
     // in practice.
     const int rescaleDelay =
-        static_cast<int>(4.0 * std::pow(length[0] * length[1] * length[2], 1.0 / 3.0))*0 + 1;
-    for (int t = 1; t < timesteps; ++t) {
+        static_cast<int>(4.0 * std::pow(length[0] * length[1] * length[2], 1.0 / 3.0));
+    int realTimeSteps = 0;
+    double lastOutput = 0.0;
+    int fileNum = 1;
+    for (double t = 1; t < timesteps; t+=stepSize) {
+        realTimeSteps++;
+
         auto filled = gridSet_t();
         auto emptied = gridSet_t();
 
@@ -62,7 +67,7 @@ int main(int argc, char *argv[]) {
         flagReinit(collideField, mass, density, filled, emptied, length, flagField);
         distributeMass(collideField, mass, density, filled, emptied, length, flagField);
 
-        if (t % rescaleDelay == 0) {
+        if (realTimeSteps % rescaleDelay == 0) {
             std::tie(tau, stepSize) =
                 adaptTimestep(collideField, density, mass, flagField, tau, stepSize, gravity);
             std::cout << "It = " << t << " stepSize = " << stepSize << " tau = " << tau
@@ -71,16 +76,20 @@ int main(int argc, char *argv[]) {
 
         treatBoundary(collideField, flagField, boundaryConditions, length);
 
-        if (!(t % timestepsPerPlotting)) {
-            writer.write(collideField, mass, density, flagField, t);
+        if ( (t-lastOutput) > timestepsPerPlotting ) {
+            lastOutput = t;
+            writer.write(collideField, mass, density, flagField, fileNum++);
         }
+
     }
 
     const auto endTime = std::chrono::high_resolution_clock::now();
     const double elapsedTime =
         std::chrono::duration_cast<std::chrono::seconds>(endTime - startTime).count();
-    const double MLUPS = (length[0] * length[1] * length[2] * timesteps) / (elapsedTime * 10e6);
-    std::cout << "Time elapsed " << elapsedTime << '\n' << "MLUPS " << MLUPS << std::endl;
+    const double MLUPS = (length[0] * length[1] * length[2] * realTimeSteps) / (elapsedTime * 10e6);
+    std::cout << "(Wall) Time elapsed " << elapsedTime << "\nMLUPS " << MLUPS
+              <<  "\n(Simulation) Time elapsed " << timesteps << "\nNumber of timesteps " << realTimeSteps
+              << "\nAverage step size " << 1.0*timesteps/realTimeSteps << std::endl;
 
     return 0;
 }
