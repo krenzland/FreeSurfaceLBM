@@ -12,7 +12,7 @@ class VtkWriter {
   public:
     VtkWriter(const std::string &filenameRoot, const coord_t &length);
     void write(const std::vector<double> &collideField, const std::vector<double> &mass,
-               const std::vector<double> &density, const std::vector<flag_t> &flagField, int t);
+                   const std::vector<double> &density, const std::vector<flag_t> &flagField, double stepSize, int t);
 
   private:
     std::string filenameRoot;

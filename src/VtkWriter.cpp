@@ -4,8 +4,7 @@ VtkWriter::VtkWriter(const std::string &filenameRoot, const coord_t &length)
     : filenameRoot(filenameRoot), length(length) {}
 
 void VtkWriter::write(const std::vector<double> &collideField, const std::vector<double> &mass,
-                      const std::vector<double> &density, const std::vector<flag_t> &flagField,
-                      int t) {
+                      const std::vector<double> &density, const std::vector<flag_t> &flagField, double stepSize, int t) {
     std::stringstream filenameBuilder;
     // Filename is of the format name_i_j_k.t, where ijk are the mpi
     filenameBuilder << filenameRoot << "." << t << ".vtk";
@@ -34,7 +33,7 @@ void VtkWriter::write(const std::vector<double> &collideField, const std::vector
     double velocity[3] = {0};
     for (size_t i = 0; i < density.size(); ++i) {
         computeVelocity(&collideField[i * Q], density[i], velocity);
-        os << velocity[0] << ' ' << velocity[1] << ' ' << velocity[2] << '\n';
+        os << velocity[0]/stepSize << ' ' << velocity[1]/stepSize << ' ' << velocity[2]/stepSize << '\n';
     }
 
     os << "\nSCALARS density float 1"

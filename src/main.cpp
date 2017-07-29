@@ -43,9 +43,10 @@ int main(int argc, char *argv[]) {
                         verbose, length);
     auto mass = initialiseMassField(flagField, length);
     initialiseInterface(streamField, mass, density, length, flagField);
+    mass = initialiseMassField(flagField, length);
 
     auto writer = VtkWriter("results/output", length);
-    writer.write(collideField, mass, density, flagField, 0);
+    writer.write(collideField, mass, density, flagField, stepSize, 0);
 
     int realTimeSteps = 0;
     double lastOutput = 0.0;
@@ -77,7 +78,7 @@ int main(int argc, char *argv[]) {
 
         if ( (t-lastOutput) > timestepsPerPlotting ) {
             lastOutput = t;
-            writer.write(collideField, mass, density, flagField, fileNum++);
+            writer.write(collideField, mass, density, flagField, stepSize, fileNum++);
         }
 
     }
