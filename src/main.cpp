@@ -37,15 +37,15 @@ int main(int argc, char *argv[]) {
     auto streamField = std::vector<double>(num_cells * Q);
     auto flagField = std::vector<flag_t>(num_cells, flag_t::FLUID);
     auto density = std::vector<double>(num_cells, 1.0);
+    auto neighborhood = std::vector<neighborhood_t>(num_cells, neighborhood_t::STANDARD);
 
     initialiseCollideAndStreamFields(collideField, streamField);
     initialiseFlagField(flagField, std::move(scenario), boundaryConditions, verbose, length);
     auto mass = initialiseMassField(flagField, length);
     initialiseInterface(streamField, mass, density, length, flagField);
-    mass = initialiseMassField(flagField, length);
 
     auto writer = VtkWriter("results/output", length);
-    writer.write(collideField, mass, density, flagField, stepSize, stepSize);
+    writer.write(collideField, mass, density, flagField, stepSize, 0);
 
     int realTimeSteps = 0;
     double lastOutput = 0.0;
@@ -53,11 +53,11 @@ int main(int argc, char *argv[]) {
     for (double t = 1; t < timesteps; t += stepSize) {
         realTimeSteps++;
 
-        doStreaming(collideField, streamField, mass, density, length, flagField);
-        streamMass(collideField, density, flagField, length, mass);
+        doStreaming(collideField, streamField, mass, density, length, flagField, neighborhood);
+        streamMass(collideField, density, flagField, length, mass, neighborhood);
         std::swap(collideField, streamField);
         doCollision(collideField, mass, density, flagField, tau, gravity, length);
-        getPotentialUpdates(mass, density, length, flagField);
+        getPotentialUpdates(mass, density, length, flagField, neighborhood);
         flagReinit(collideField, mass, density, length, flagField);
         distributeMass(collideField, mass, density, length, flagField);
 
@@ -81,7 +81,8 @@ int main(int argc, char *argv[]) {
     const auto endTime = std::chrono::high_resolution_clock::now();
     const double elapsedTime =
         std::chrono::duration_cast<std::chrono::seconds>(endTime - startTime).count();
-    const double MLUPS = (length[0] * length[1] * length[2] * realTimeSteps) / (elapsedTime * 10e6);
+    const double MLUPS =
+        (1.0 * length[0] * length[1] * length[2] * realTimeSteps) / (elapsedTime * 10e6);
     std::cout << "(Wall) Time elapsed " << elapsedTime << "\nMLUPS " << MLUPS
               << "\n(Simulation) Time elapsed " << timesteps << "\nNumber of timesteps "
               << realTimeSteps << "\nAverage step size " << 1.0 * timesteps / realTimeSteps
