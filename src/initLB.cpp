@@ -1,12 +1,12 @@
 
-#include <scenarios/OnlyWater.hpp>
-#include <scenarios/DamBreak.hpp>
-#include <scenarios/FallingDrop.hpp>
 #include "initLB.hpp"
 #include "ConfigParser.hpp"
 #include "LBMHelper.hpp"
 #include "freeSurface.hpp"
 #include "scenarios/Scenario.hpp"
+#include <scenarios/DamBreak.hpp>
+#include <scenarios/FallingDrop.hpp>
+#include <scenarios/OnlyWater.hpp>
 
 boundary_t readBoundaryConditions(ConfigParser &config) {
     boundary_t bc;
@@ -74,11 +74,13 @@ void initialiseCollideAndStreamFields(std::vector<double> &collideField,
 void setBoundaryFlag(std::vector<flag_t> &flagField, int x, int y, int z, const coord_t &length,
                      flag_t value) {
     const int index = indexForCell(x, y, z, length);
-    flagField[index] = value;
+    if (flagField[index] != flag_t::NO_SLIP) {
+        flagField[index] = value;
+    }
 }
 
-void initialiseFlagField(std::vector<flag_t> &flagField, std::unique_ptr<Scenario> scenario, boundary_t &boundaryConditions,
-                         bool verbose, const coord_t &length) {
+void initialiseFlagField(std::vector<flag_t> &flagField, std::unique_ptr<Scenario> scenario,
+                         boundary_t &boundaryConditions, bool verbose, const coord_t &length) {
     scenario->getFlagField(flagField, length);
 // We surround our entire geometry with a real boundary layer.
 #pragma omp parallel for
@@ -115,12 +117,12 @@ void initialiseInterface(std::vector<double> &distributions, std::vector<double>
             for (int x = 1; x < length[0] + 1; ++x) {
                 const auto coord = coord_t{x, y, z};
                 const int flagIndex = indexForCell(coord, length);
-                if (flags[flagIndex] == flag_t ::FLUID) {
-                    for (auto &vel: LATTICEVELOCITIES) {
+                if (flags[flagIndex] == flag_t::FLUID) {
+                    for (auto &vel : LATTICEVELOCITIES) {
                         const coord_t neigh = coord_t{x + vel[0], y + vel[1], z + vel[2]};
                         const int neighFlag = indexForCell(neigh, length);
                         if (flags[neighFlag] == flag_t::EMPTY) {
-                           newFlags[neighFlag] = flag_t::INTERFACE;
+                            newFlags[neighFlag] = flag_t::INTERFACE;
                         }
                     }
                 }
@@ -133,9 +135,9 @@ void initialiseInterface(std::vector<double> &distributions, std::vector<double>
 std::vector<double> initialiseMassField(std::vector<flag_t> &flags, const coord_t &length) {
     auto mass = std::vector<double>(flags.size());
 
-    // Set mass for empty cells to zero, for fluid cells to the density.
-    // Interface cells are generated separately so need no special case.
-    // Boundary cells are treated as empty cells, the mass shouldn't matter anyway.
+// Set mass for empty cells to zero, for fluid cells to the density.
+// Interface cells are generated separately so need no special case.
+// Boundary cells are treated as empty cells, the mass shouldn't matter anyway.
 #pragma omp parallel for
     for (size_t i = 0; i < flags.size(); ++i) {
         if (flags[i] == flag_t::FLUID) {

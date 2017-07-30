@@ -1,5 +1,5 @@
-#include <LBMHelper.hpp>
 #include "FallingDrop.hpp"
+#include <LBMHelper.hpp>
 
 FallingDrop::FallingDrop(ConfigParser &config) {
     dropHeight = config.parse<int>("dropHeight");
@@ -14,8 +14,9 @@ void FallingDrop::getFlagField(std::vector<flag_t> &flags, const coord_t &length
         for (int y = 1; y < length[1] + 1; ++y) {
             for (int x = 1; x < length[0] + 1; ++x) {
                 flag_t entry = flag_t::EMPTY;
-                const double distance = std::sqrt(
-                        std::pow(middleX - x, 2) + std::pow(middleY - y, 2) + std::pow(dropHeight - z, 2));
+                const double distance =
+                    std::sqrt(std::pow(middleX - x, 2) + std::pow(middleY - y, 2) +
+                              std::pow(dropHeight - z, 2));
                 if (distance <= dropRadius) {
                     entry = flag_t::FLUID;
                 }
@@ -27,4 +28,3 @@ void FallingDrop::getFlagField(std::vector<flag_t> &flags, const coord_t &length
         }
     }
 }
-

@@ -5,7 +5,7 @@ zlength                         30
 
 timesteps                       2000
 timestepsPerPlotting            50
-tau                             1.2
+tau                             0.65
 
 # Boundary Conditions
 bcLeft                          NO_SLIP

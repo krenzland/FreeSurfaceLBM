@@ -14,7 +14,7 @@ void computePostCollisionDistributions(double *currentCell, double tau, const do
 /** carries out the whole local collision process. Computes density and velocity
  * and equilibrium distributions. Carries out BGK update.
  */
-void doCollision(std::vector<double> &distributions, std::vector<double> &mass, std::vector<double> &density,
-                 const std::vector<flag_t> &flagField, double tau, const std::array<double, 3> &gravity,
-                 const coord_t &length);
+void doCollision(std::vector<double> &distributions, std::vector<double> &mass,
+                 std::vector<double> &density, const std::vector<flag_t> &flagField, double tau,
+                 const std::array<double, 3> &gravity, const coord_t &length);
 #endif

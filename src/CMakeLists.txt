@@ -37,4 +37,4 @@ set(sources
 add_executable(lbsim ${sources})
 target_include_directories(lbsim PUBLIC ./)
 target_link_libraries(lbsim m)
-target_compile_options(lbsim PUBLIC -Wall -Wno-missing-braces -pedantic -Werror -g -Og -march=native)
+target_compile_options(lbsim PUBLIC -Wall -Wno-missing-braces -pedantic -Werror -g -O3 -march=native)
