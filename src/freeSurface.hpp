@@ -8,11 +8,14 @@
 #include <assert.h>
 #include <unordered_set>
 #include <vector>
+
 using gridSet_t = std::unordered_set<coord_t>;
 
-std::array<double, 3> computeSurfaceNormal(const std::vector<double> &distributions, const std::vector<double> &density,
+std::array<double, 3> computeSurfaceNormal(const std::vector<double> &distributions,
+                                           const std::vector<double> &density,
                                            const std::vector<flag_t> &flags, const coord_t &length,
-                                           const std::vector<double> &mass, const coord_t &position);
+                                           const std::vector<double> &mass,
+                                           const coord_t &position);
 
 void streamMass(const std::vector<double> &distributions, const std::vector<double> &density,
                 const std::vector<flag_t> &flags, const coord_t &length, std::vector<double> &mass);
@@ -22,14 +25,11 @@ double calculateSE(const std::vector<double> &distributions, const std::vector<f
 // Corresponds to section 4.3.
 // TODO: Find better name!
 void getPotentialUpdates(const std::vector<double> &mass, const std::vector<double> &density,
-                         const std::vector<flag_t> &flags, gridSet_t &emptied, gridSet_t &filled,
-                         const coord_t &length);
-
+                         const coord_t &length, std::vector<flag_t> &flags);
 void flagReinit(std::vector<double> &distributions, std::vector<double> &mass,
-                std::vector<double> &density, gridSet_t &filled, gridSet_t &emptied,
-                const coord_t &length, std::vector<flag_t> &flags);
+                std::vector<double> &density, const coord_t &length, std::vector<flag_t> &flags);
 
 void distributeMass(const std::vector<double> &distributions, std::vector<double> &mass,
-                    const std::vector<double> &density, gridSet_t &filled, gridSet_t &emptied,
-                    const coord_t &length, std::vector<flag_t> &flags);
+                    const std::vector<double> &density, const coord_t &length,
+                    std::vector<flag_t> &flags);
 #endif // CFD_LAB_FREESURFACE_HPP

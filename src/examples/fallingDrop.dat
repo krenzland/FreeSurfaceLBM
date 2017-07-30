@@ -1,11 +1,11 @@
 # Settings for simulation
-xlength                         30
-ylength                         30
-zlength                         30
+xlength                         64
+ylength                         64
+zlength                         64
 
-timesteps                       1000
+timesteps                       1500
 timestepsPerPlotting            50
-tau                             0.9
+tau                             0.65
 
 # Boundary Conditions
 bcLeft                          NO_SLIP
@@ -17,9 +17,9 @@ bcBack                          NO_SLIP
 
 # Settings for scenarios
 scenario                        fallingDrop
-dropRadius 			10
-dropHeight 			20
-dropWaterHeight			5
+dropRadius 			12
+dropHeight 			45
+dropWaterHeight			20
 
 velocityWallX                   0.0
 velocityWallY                   0.0
@@ -34,4 +34,4 @@ pressureIn                      0.0
 # External forces
 gravityX			0.0
 gravityY			0.0
-gravityZ			-0.0015
+gravityZ			-0.000534

@@ -1,10 +1,12 @@
 #include "VtkWriter.hpp"
+#include <assert.h>
 
 VtkWriter::VtkWriter(const std::string &filenameRoot, const coord_t &length)
     : filenameRoot(filenameRoot), length(length) {}
 
 void VtkWriter::write(const std::vector<double> &collideField, const std::vector<double> &mass,
-                      const std::vector<double> &density, const std::vector<flag_t> &flagField, double stepSize, int t) {
+                      const std::vector<double> &density, const std::vector<flag_t> &flagField,
+                      double stepSize, int t) {
     std::stringstream filenameBuilder;
     // Filename is of the format name_i_j_k.t, where ijk are the mpi
     filenameBuilder << filenameRoot << "." << t << ".vtk";
@@ -33,33 +35,38 @@ void VtkWriter::write(const std::vector<double> &collideField, const std::vector
     double velocity[3] = {0};
     for (size_t i = 0; i < density.size(); ++i) {
         computeVelocity(&collideField[i * Q], density[i], velocity);
-        os << velocity[0]/stepSize << ' ' << velocity[1]/stepSize << ' ' << velocity[2]/stepSize << '\n';
+        os << velocity[0] / stepSize << ' ' << velocity[1] / stepSize << ' '
+           << velocity[2] / stepSize << '\n';
     }
 
     os << "\nSCALARS density float 1"
        << "\nLOOKUP_TABLE default\n\n";
 
     for (size_t i = 0; i < density.size(); ++i) {
-        if (flagField[i] != flag_t::PARALLEL_BOUNDARY) {
-            os << density[i] << '\n';
-        }
+        os << density[i] << '\n';
     }
 
     os << "\nSCALARS cell_type int 1"
        << "\nLOOKUP_TABLE default\n\n";
 
+    int nEmpty, nIf;
+    nEmpty = 0;
+    nIf = 0;
     for (size_t i = 0; i < density.size(); ++i) {
-        if (flagField[i] != flag_t::PARALLEL_BOUNDARY) {
-            os << static_cast<int>(flagField[i]) << '\n';
+        if (flagField[i] == flag_t::EMPTY) {
+            nEmpty++;
         }
+        if (flagField[i] == flag_t::INTERFACE) {
+            nIf++;
+        }
+        os << static_cast<int>(flagField[i]) << '\n';
     }
+    std::cout << "nEmpty = " << nEmpty << " nIf = " << nIf << std::endl;
 
     os << "\nSCALARS mass float 1"
        << "\nLOOKUP_TABLE default\n\n";
 
     for (size_t i = 0; i < mass.size(); ++i) {
-        if (flagField[i] != flag_t::PARALLEL_BOUNDARY) {
-            os << mass[i] << '\n';
-        }
+        os << mass[i] << '\n';
     }
 }

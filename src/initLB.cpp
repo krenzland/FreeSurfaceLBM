@@ -1,12 +1,12 @@
 
-#include <scenarios/OnlyWater.hpp>
-#include <scenarios/DamBreak.hpp>
-#include <scenarios/FallingDrop.hpp>
 #include "initLB.hpp"
 #include "ConfigParser.hpp"
 #include "LBMHelper.hpp"
 #include "freeSurface.hpp"
 #include "scenarios/Scenario.hpp"
+#include <scenarios/DamBreak.hpp>
+#include <scenarios/FallingDrop.hpp>
+#include <scenarios/OnlyWater.hpp>
 
 boundary_t readBoundaryConditions(ConfigParser &config) {
     boundary_t bc;
@@ -74,11 +74,13 @@ void initialiseCollideAndStreamFields(std::vector<double> &collideField,
 void setBoundaryFlag(std::vector<flag_t> &flagField, int x, int y, int z, const coord_t &length,
                      flag_t value) {
     const int index = indexForCell(x, y, z, length);
-    flagField[index] = value;
+    if (flagField[index] != flag_t::NO_SLIP) {
+        flagField[index] = value;
+    }
 }
 
-void initialiseFlagField(std::vector<flag_t> &flagField, std::unique_ptr<Scenario> scenario, boundary_t &boundaryConditions,
-                         bool verbose, const coord_t &length) {
+void initialiseFlagField(std::vector<flag_t> &flagField, std::unique_ptr<Scenario> scenario,
+                         boundary_t &boundaryConditions, bool verbose, const coord_t &length) {
     scenario->getFlagField(flagField, length);
 // We surround our entire geometry with a real boundary layer.
 #pragma omp parallel for
@@ -109,34 +111,33 @@ void initialiseFlagField(std::vector<flag_t> &flagField, std::unique_ptr<Scenari
 void initialiseInterface(std::vector<double> &distributions, std::vector<double> &mass,
                          std::vector<double> &density, const coord_t &length,
                          std::vector<flag_t> &flags) {
-    // Idea: Treat all empty cells as recently emptied cells and let the free surface code deal with
-    // it.
-    // While it works, it is pretty slow. It is fast enough because it happens only for the first
-    // time step and is in
-    // linear time to the number of empty cells.
-    auto emptied = gridSet_t();
-    for (int z = 0; z < length[2] + 2; ++z) {
-        for (int y = 0; y < length[1] + 2; ++y) {
-            for (int x = 0; x < length[0] + 2; ++x) {
+    auto newFlags = flags;
+    for (int z = 1; z < length[2] + 1; ++z) {
+        for (int y = 1; y < length[1] + 1; ++y) {
+            for (int x = 1; x < length[0] + 1; ++x) {
                 const auto coord = coord_t{x, y, z};
                 const int flagIndex = indexForCell(coord, length);
-                if (flags[flagIndex] == flag_t::EMPTY) {
-                    flags[flagIndex] = flag_t::INTERFACE;
-                    emptied.insert(coord);
+                if (flags[flagIndex] == flag_t::FLUID) {
+                    for (auto &vel : LATTICEVELOCITIES) {
+                        const coord_t neigh = coord_t{x + vel[0], y + vel[1], z + vel[2]};
+                        const int neighFlag = indexForCell(neigh, length);
+                        if (flags[neighFlag] == flag_t::EMPTY) {
+                            newFlags[neighFlag] = flag_t::INTERFACE;
+                        }
+                    }
                 }
             }
         }
     }
-    auto filled = gridSet_t(); // We have no recently filled cells.
-    flagReinit(distributions, mass, density, filled, emptied, length, flags);
+    flags = std::move(newFlags);
 }
 
 std::vector<double> initialiseMassField(std::vector<flag_t> &flags, const coord_t &length) {
     auto mass = std::vector<double>(flags.size());
 
-    // Set mass for empty cells to zero, for fluid cells to the density.
-    // Interface cells are generated separately so need no special case.
-    // Boundary cells are treated as empty cells, the mass shouldn't matter anyway.
+// Set mass for empty cells to zero, for fluid cells to the density.
+// Interface cells are generated separately so need no special case.
+// Boundary cells are treated as empty cells, the mass shouldn't matter anyway.
 #pragma omp parallel for
     for (size_t i = 0; i < flags.size(); ++i) {
         if (flags[i] == flag_t::FLUID) {

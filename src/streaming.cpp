@@ -41,14 +41,14 @@ void doStreaming(const std::vector<double> &collideField, std::vector<double> &s
                     const auto coord = coord_t{x, y, z};
                     // Density contains the densities of the previous timestep!
                     const auto normal =
-                            computeSurfaceNormal(collideField, density, flagField, length, mass,
-                                                 coord);
+                        computeSurfaceNormal(collideField, density, flagField, length, mass, coord);
 
                     for (int i = 0; i < Q; ++i) {
                         const auto &vel = LATTICEVELOCITIES[i];
                         const int neighFlag =
                             indexForCell(coord_t{x - vel[0], y - vel[1], z - vel[2]}, length);
-                        if (flagIndex == neighFlag) continue;
+                        if (flagIndex == neighFlag)
+                            continue;
 
                         const bool isEmptyAdjacent = flagField[neighFlag] == flag_t::EMPTY;
 

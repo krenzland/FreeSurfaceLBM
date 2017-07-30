@@ -16,6 +16,5 @@ void computePostCollisionDistributions(double *currentCell, double tau, const do
  */
 void doCollision(std::vector<double> &distributions, std::vector<double> &mass,
                  std::vector<double> &density, const std::vector<flag_t> &flagField, double tau,
-                 const std::array<double, 3> &gravity, const coord_t &length, gridSet_t &filled,
-                 gridSet_t &emptied);
+                 const std::array<double, 3> &gravity, const coord_t &length);
 #endif

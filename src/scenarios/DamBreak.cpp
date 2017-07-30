@@ -1,9 +1,7 @@
-#include <LBMHelper.hpp>
 #include "DamBreak.hpp"
+#include <LBMHelper.hpp>
 
-DamBreak::DamBreak(ConfigParser &config) {
-    damSize = config.parse<int>("damSize");
-}
+DamBreak::DamBreak(ConfigParser &config) { damSize = config.parse<int>("damSize"); }
 
 void DamBreak::getFlagField(std::vector<flag_t> &flags, const coord_t &length) {
     // Breaking  dam
@@ -15,4 +13,3 @@ void DamBreak::getFlagField(std::vector<flag_t> &flags, const coord_t &length) {
         }
     }
 }
-

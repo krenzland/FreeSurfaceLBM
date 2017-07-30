@@ -171,7 +171,8 @@ void treatBoundary(std::vector<double> &collideField, const std::vector<flag_t> 
                 case flag_t::FLUID:
                 case flag_t::EMPTY:
                 case flag_t::INTERFACE:
-                case flag_t::PARALLEL_BOUNDARY:
+                case flag_t::INTERFACE_TO_EMPTY:
+                case flag_t::INTERFACE_TO_FLUID:
                     break;
                 case flag_t::NO_SLIP:
                     singleNoSlip(collideField, flagField, boundaryConditions.velocityWall, x, y, z,

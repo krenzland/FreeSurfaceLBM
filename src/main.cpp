@@ -5,9 +5,9 @@
 #include "initLB.hpp"
 #include "streaming.hpp"
 #include "timeStep.hpp"
+#include <bits/unique_ptr.h>
 #include <cassert>
 #include <chrono>
-#include <bits/unique_ptr.h>
 
 int main(int argc, char *argv[]) {
     coord_t length;
@@ -35,41 +35,36 @@ int main(int argc, char *argv[]) {
     // Initialise all fields.
     auto collideField = std::vector<double>(num_cells * Q);
     auto streamField = std::vector<double>(num_cells * Q);
-    auto flagField = std::vector<flag_t>(num_cells);
+    auto flagField = std::vector<flag_t>(num_cells, flag_t::FLUID);
     auto density = std::vector<double>(num_cells, 1.0);
 
     initialiseCollideAndStreamFields(collideField, streamField);
-    initialiseFlagField(flagField, std::move(scenario), boundaryConditions,
-                        verbose, length);
+    initialiseFlagField(flagField, std::move(scenario), boundaryConditions, verbose, length);
     auto mass = initialiseMassField(flagField, length);
     initialiseInterface(streamField, mass, density, length, flagField);
     mass = initialiseMassField(flagField, length);
 
     auto writer = VtkWriter("results/output", length);
-    writer.write(collideField, mass, density, flagField, stepSize, 0);
+    writer.write(collideField, mass, density, flagField, stepSize, stepSize);
 
     int realTimeSteps = 0;
     double lastOutput = 0.0;
     int fileNum = 1;
-    for (double t = 1; t < timesteps; t+=stepSize) {
+    for (double t = 1; t < timesteps; t += stepSize) {
         realTimeSteps++;
 
-        auto filled = gridSet_t();
-        auto emptied = gridSet_t();
-
         doStreaming(collideField, streamField, mass, density, length, flagField);
-        streamMass(streamField, density, flagField, length, mass); // Maybe do after normal streaming?
+        streamMass(collideField, density, flagField, length, mass);
         std::swap(collideField, streamField);
-        doCollision(collideField, mass, density, flagField, tau, gravity, length, filled, emptied);
-        getPotentialUpdates(mass, density, flagField, emptied, filled,
-                            length);
-        flagReinit(collideField, mass, density, filled, emptied, length, flagField);
-        distributeMass(collideField, mass, density, filled, emptied, length, flagField);
+        doCollision(collideField, mass, density, flagField, tau, gravity, length);
+        getPotentialUpdates(mass, density, length, flagField);
+        flagReinit(collideField, mass, density, length, flagField);
+        distributeMass(collideField, mass, density, length, flagField);
 
         const double stepSizeBefore = stepSize;
         // TODO: Use a delay for increasing (maybe).
         std::tie(tau, stepSize) =
-                adaptTimestep(collideField, density, mass, flagField, tau, stepSize, gravity);
+            adaptTimestep(collideField, density, mass, flagField, tau, stepSize, gravity);
         if (stepSize != stepSizeBefore) {
             std::cout << "It = " << realTimeSteps << " stepSize = " << stepSize << " tau = " << tau
                       << std::endl;
@@ -77,11 +72,10 @@ int main(int argc, char *argv[]) {
 
         treatBoundary(collideField, flagField, boundaryConditions, length);
 
-        if ( (t-lastOutput) > timestepsPerPlotting ) {
+        if ((t - lastOutput) > timestepsPerPlotting) {
             lastOutput = t;
             writer.write(collideField, mass, density, flagField, stepSize, fileNum++);
         }
-
     }
 
     const auto endTime = std::chrono::high_resolution_clock::now();
@@ -89,8 +83,9 @@ int main(int argc, char *argv[]) {
         std::chrono::duration_cast<std::chrono::seconds>(endTime - startTime).count();
     const double MLUPS = (length[0] * length[1] * length[2] * realTimeSteps) / (elapsedTime * 10e6);
     std::cout << "(Wall) Time elapsed " << elapsedTime << "\nMLUPS " << MLUPS
-              <<  "\n(Simulation) Time elapsed " << timesteps << "\nNumber of timesteps " << realTimeSteps
-              << "\nAverage step size " << 1.0*timesteps/realTimeSteps << std::endl;
+              << "\n(Simulation) Time elapsed " << timesteps << "\nNumber of timesteps "
+              << realTimeSteps << "\nAverage step size " << 1.0 * timesteps / realTimeSteps
+              << std::endl;
 
     return 0;
 }
