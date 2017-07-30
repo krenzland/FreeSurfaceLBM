@@ -1,7 +1,7 @@
 # Settings for simulation
 xlength                         30
 ylength                         30
-zlength                         30
+zlength                         50
 
 timesteps                       2000
 timestepsPerPlotting            50

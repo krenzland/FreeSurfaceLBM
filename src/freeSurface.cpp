@@ -153,9 +153,9 @@ double calculateSE(const std::vector<double> &distributions, const std::vector<f
            distributions[indexForCell(curCell, length) * Q + curFiIndex];
 }
 
-void getPotentialUpdates(const std::vector<double> &mass, const std::vector<double> &density,
-                         const std::vector<flag_t> &flags, gridSet_t &emptied, gridSet_t &filled,
-                         const coord_t &length) {
+
+void getPotentialUpdates(const std::vector<double> &mass, const std::vector<double> &density, const coord_t &length,
+                         std::vector<flag_t> &flags) {
     // Check whether we have to convert the interface to an emptied or fluid cell.
     // Doesn't actually update the flags but pushes them to a queue.
     // We do this here so we do not have to calculate the density again.
@@ -170,42 +170,40 @@ void getPotentialUpdates(const std::vector<double> &mass, const std::vector<doub
                 if (flags[flagIndex] != flag_t::INTERFACE) continue;
                 // Eq. 4.7
                 if (mass[flagIndex] > (1 + offset) * density[flagIndex]) {
-                    filled.insert(coord);
+                    flags[flagIndex] = flag_t::INTERFACE_TO_FLUID;
                 } else if (mass[flagIndex] < -offset * density[flagIndex]) {
                     // Emptied
-                    emptied.insert(coord);
+                    flags[flagIndex] = flag_t::INTERFACE_TO_EMPTY;
                 }
             }
         }
     }
 }
 
-void interpolateEmptyCell(std::vector<double> &distributions, std::vector<double> &density,
-                          const std::vector<coord_t> &toBalance, const coord_t &length,
-                          const std::vector<flag_t> &flags) {
+void interpolateEmptyCell(std::vector<double> &distributions, std::vector<double> &density, const coord_t &length,
+                          const std::vector<flag_t> &flags, const coord_t &coord) {
 // Note: We only interpolate cells that are not emptied cells themselves!
-    for (size_t i = 0; i < toBalance.size(); ++i) {
-        const auto &cell = toBalance[i];
-        const int flagIndex = indexForCell(cell, length);
+        const int flagIndex = indexForCell(coord, length);
         const int cellIndex = flagIndex * Q;
 
         int numNeighs = 0;
         double avgDensity = 0.0;
-        auto avgVel = std::array<double, 3>();
+        auto avgVel = std::array<double, 3>{};
         for (int i = 0; i < Q; ++i) {
             const auto &vel = LATTICEVELOCITIES[i];
-            const auto neigh = coord_t{cell[0] + vel[0], cell[1] + vel[1], cell[2] + vel[2]};
+            const auto neigh = coord_t{coord[0] + vel[0], coord[1] + vel[1], coord[2] + vel[2]};
 
             const int neighFlagIndex = indexForCell(neigh, length);
             if (neighFlagIndex == flagIndex) continue; // Ignore current cell!
 
+            // Don't interpolate cells that are emptied or filled.
             if (flags[neighFlagIndex] == flag_t::FLUID ||
-                flags[neighFlagIndex] == flag_t::INTERFACE) {
+                flags[neighFlagIndex] == flag_t::INTERFACE ||
+                    flags[neighFlagIndex] == flag_t::INTERFACE_TO_FLUID) {
                 const int neighDistrIndex = neighFlagIndex * Q;
                 const double neighDensity = density[neighFlagIndex];
                 std::array<double, 3> neighVelocity;
-                computeVelocity(&distributions[neighDistrIndex], neighDensity,
-                                neighVelocity.data());
+                computeVelocity(&distributions[neighDistrIndex], neighDensity, neighVelocity.data());
 
                 ++numNeighs;
                 avgDensity += neighDensity;
@@ -223,14 +221,17 @@ void interpolateEmptyCell(std::vector<double> &distributions, std::vector<double
         avgVel[1] /= numNeighs;
         avgVel[2] /= numNeighs;
 
+
         density[flagIndex] = avgDensity; // Density of new cell is changed!
         // Note: This writes the equilibrium distribution directly into the distributions array.
-        computeFeq(avgDensity, avgVel.data(), &distributions[cellIndex]);
-    }
+        auto feq = std::array<double, 19>{};
+        computeFeq(avgDensity, avgVel.data(), feq.data());
+        for (int i = 0; i < Q; ++i) {
+            distributions[cellIndex + i] = feq[i] * 1;
+        }
 }
 
-void flagReinit(std::vector<double> distributions, std::vector<double> &mass,
-                std::vector<double> &density, gridSet_t &filled, gridSet_t &emptied,
+void flagReinit(std::vector<double> &distributions, std::vector<double> &mass, std::vector<double> &density,
                 const coord_t &length, std::vector<flag_t> &flags) {
     // First consider all filled cells.
 
@@ -238,59 +239,70 @@ void flagReinit(std::vector<double> distributions, std::vector<double> &mass,
     // We need to process them after the cells have been converted to interface cells because
     // otherwise the interpolation
     // depends on the processing order.
-    // TODO: Do we need to do this? Not sure...
-    auto toBalance = std::vector<coord_t>();
 
-    for (const auto &elem : filled) {
-        const int curFlag = indexForCell(elem, length);
-        // Find all neighbours of this cell.
-        for (const auto &vel : LATTICEVELOCITIES) {
-            coord_t neighbor = elem;
-            neighbor[0] += vel[0];
-            neighbor[1] += vel[1];
-            neighbor[2] += vel[2];
-            const int neighFlag = indexForCell(neighbor, length);
-            if (curFlag == neighFlag) continue;
-            // This neighbor is converted to an interface cell iff. it is an empty cell or a cell
-            // that would become an emptied cell.
-            // We need to remove it from the emptied set, otherwise we might have holes in the
-            // interface.
-            if (flags[neighFlag] == flag_t::EMPTY) {
-                flags[neighFlag] = flag_t::INTERFACE;
-                mass[neighFlag] = 0.0;
-                // Notice that the new interface cells don't have any valid distributions.
-                // They are initialised with f^{eq}_i (p_{avg}, v_{avg}), which are the average
-                // density and velocity of all neighbouring fluid and interface cells.
-                toBalance.emplace_back(neighbor);
-            } else if (flags[neighFlag] == flag_t::INTERFACE) {
-                // Already is an interface but should not be converted to an empty cell later.
-                emptied.erase(neighbor);
+    // First set interface for all filled cells.
+    for (int z = 1; z < length[2] + 1; ++z) {
+        for (int y = 1; y < length[1] + 1; ++y) {
+            for (int x = 1; x < length[0] + 1; ++x) {
+                const int curFlag = indexForCell(x, y, z, length);
+                if (flags[curFlag] != flag_t::INTERFACE_TO_FLUID) continue;
+                // Find all neighbours of this cell.
+                for (const auto &vel : LATTICEVELOCITIES) {
+                    coord_t neighbor = {x, y, z};
+                    neighbor[0] += vel[0];
+                    neighbor[1] += vel[1];
+                    neighbor[2] += vel[2];
+                    const int neighFlag = indexForCell(neighbor, length);
+                    if (curFlag == neighFlag) continue;
+
+                    // This neighbor is converted to an interface cell iff. it is an empty cell or a cell
+                    // that would become an emptied cell.
+                    // We need to remove it from the emptied set, otherwise we might have holes in the
+                    // interface.
+                    if (flags[neighFlag] == flag_t::EMPTY) {
+                        flags[neighFlag] = flag_t::INTERFACE;
+                        mass[neighFlag] = 0.0;
+                        // Notice that the new interface cells don't have any valid distributions.
+                        // They are initialised with f^{eq}_i (p_{avg}, v_{avg}), which are the average
+                        // density and velocity of all neighbouring fluid and interface cells.
+                        interpolateEmptyCell(distributions, density, length, flags, neighbor);
+                    } else if (flags[neighFlag] == flag_t::INTERFACE_TO_EMPTY) {
+                        // Already is an interface but should not be converted to an empty cell later.
+                        flags[neighFlag] = flag_t::INTERFACE;
+                    }
+                }
             }
         }
-        // Now we can convert the cell itself to a fluid cell.
-        flags[curFlag] = flag_t::FLUID;
     }
 
-    // Secondly we consider all emptied cells that are not needed as interface cells.
-    for (auto &elem : emptied) {
-        // Convert all neighbours to interface cells.
-        for (const auto &vel : LATTICEVELOCITIES) {
-            coord_t neighbor = {elem[0] + vel[0], elem[1] + vel[1], elem[2] + vel[2]};
-            const auto neighFlag = indexForCell(neighbor, length);
-            if (flags[neighFlag] == flag_t::FLUID) {
-                flags[neighFlag] = flag_t::INTERFACE;
-                mass[neighFlag] = density[neighFlag];
-                // We can reuse the distributions as they are still valid.
+    // Now we can consider all filled cells!
+    for (int z = 1; z < length[2] + 1; ++z) {
+        for (int y = 1; y < length[1] + 1; ++y) {
+            for (int x = 1; x < length[0] + 1; ++x) {
+                const int curFlag = indexForCell(x, y, z, length);
+                // Find all neighbours of this cell.
+                if (flags[curFlag] != flag_t::INTERFACE_TO_EMPTY) continue;
+                for (const auto &vel : LATTICEVELOCITIES) {
+                    coord_t neighbor = {x, y, z};
+                    neighbor[0] += vel[0];
+                    neighbor[1] += vel[1];
+                    neighbor[2] += vel[2];
+                    const int neighFlag = indexForCell(neighbor, length);
+                    if (curFlag == neighFlag) continue;
+
+                    // This neighbor is converted to an interface cell iff. it is an empty cell or a cell
+                    // that would become an emptied cell.
+                    // We need to remove it from the emptied set, otherwise we might have holes in the
+                    // interface.
+                    if (flags[neighFlag] == flag_t::FLUID) {
+                        flags[neighFlag] = flag_t::INTERFACE;
+                        mass[neighFlag] = density[neighFlag];
+                        // We can reuse the distributions as they are still valid.
+                    }
+                }
             }
         }
-        // Again, cell should be marked as empty, finally.
-        const auto curFlag = indexForCell(elem, length);
-        flags[curFlag] = flag_t::EMPTY;
     }
-
-    // Now we can interpolate the distributions for the new interface cells that have been former
-    // empty cells.
-    interpolateEmptyCell(distributions, density, toBalance, length, flags);
 }
 
 // TODO: Find better name for this!
@@ -381,8 +393,7 @@ void distributeSingleMass(const std::vector<double> &distributions, std::vector<
     }
 }
 
-void distributeMass(const std::vector<double> &distributions, std::vector<double> &mass,
-                    const std::vector<double> &density, gridSet_t &filled, gridSet_t &emptied,
+void distributeMass(const std::vector<double> &distributions, std::vector<double> &mass, const std::vector<double> &density,
                     const coord_t &length, std::vector<flag_t> &flags) {
     // Here we redistribute the excess mass of the cells.
     // It is important that we get a copy of the filled/emptied where all converted cells are stored
@@ -390,13 +401,22 @@ void distributeMass(const std::vector<double> &distributions, std::vector<double
     // This excludes emptied cells that are used as interface cells instead!
     auto massChange = std::vector<double>(mass.size(), 0.0);
 
-    for (auto &&coord : filled) {
-        distributeSingleMass(distributions, mass, massChange, update_t::FILLED, length,
-                             coord, flags, density);
-    }
-    for (auto &&coord : emptied) {
-        distributeSingleMass(distributions, mass, massChange, update_t::EMPTIED, length,
-                             coord, flags, density);
+    for (int z = 1; z < length[2] + 1; ++z) {
+        for (int y = 1; y < length[1] + 1; ++y) {
+            for (int x = 1; x < length[0] + 1; ++x) {
+                const int curFlag = indexForCell(x, y, z, length);
+                const coord_t coord = {x, y, z};
+                if (flags[curFlag] == flag_t::INTERFACE_TO_FLUID) {
+                    distributeSingleMass(distributions, mass, massChange, update_t::FILLED, length,
+                                         coord, flags, density);
+                    flags[curFlag] = flag_t::FLUID;
+                } else if (flags[curFlag] == flag_t::INTERFACE_TO_EMPTY) {
+                    distributeSingleMass(distributions, mass, massChange, update_t::EMPTIED, length,
+                                         coord, flags, density);
+                    flags[curFlag] = flag_t::EMPTY;
+                }
+            }
+        }
     }
 
 #pragma omp parallel for

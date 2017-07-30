@@ -34,9 +34,11 @@ enum class flag_t {
     INFLOW = 4,
     OUTFLOW = 5,
     PRESSURE_IN = 6,
-    PARALLEL_BOUNDARY = 7,
-    EMPTY = 8,
-    INTERFACE = 9,
+    EMPTY = 7,
+    INTERFACE = 8,
+    // Temporary flags, should never be seen in output!
+    INTERFACE_TO_FLUID = 11,
+    INTERFACE_TO_EMPTY = 12,
 };
 
 // This is needed to parse the config file.
@@ -47,8 +49,7 @@ const auto stringToFlag =
                                              {"FREE_SLIP", flag_t::FREE_SLIP},
                                              {"INFLOW", flag_t::INFLOW},
                                              {"OUTFLOW", flag_t::OUTFLOW},
-                                             {"PRESSURE_IN", flag_t::PRESSURE_IN},
-                                             {"PARALLEL_BOUNDARY", flag_t::PARALLEL_BOUNDARY}});
+                                             {"PRESSURE_IN", flag_t::PRESSURE_IN}});
 
 struct boundary_t {
     flag_t bcLeft;

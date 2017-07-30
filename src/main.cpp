@@ -35,7 +35,7 @@ int main(int argc, char *argv[]) {
     // Initialise all fields.
     auto collideField = std::vector<double>(num_cells * Q);
     auto streamField = std::vector<double>(num_cells * Q);
-    auto flagField = std::vector<flag_t>(num_cells);
+    auto flagField = std::vector<flag_t>(num_cells, flag_t::FLUID);
     auto density = std::vector<double>(num_cells, 1.0);
 
     initialiseCollideAndStreamFields(collideField, streamField);
@@ -46,7 +46,7 @@ int main(int argc, char *argv[]) {
     mass = initialiseMassField(flagField, length);
 
     auto writer = VtkWriter("results/output", length);
-    writer.write(collideField, mass, density, flagField, stepSize, 0);
+    writer.write(collideField, mass, density, flagField, stepSize, stepSize);
 
     int realTimeSteps = 0;
     double lastOutput = 0.0;
@@ -54,17 +54,13 @@ int main(int argc, char *argv[]) {
     for (double t = 1; t < timesteps; t+=stepSize) {
         realTimeSteps++;
 
-        auto filled = gridSet_t();
-        auto emptied = gridSet_t();
-
         doStreaming(collideField, streamField, mass, density, length, flagField);
-        streamMass(streamField, density, flagField, length, mass); // Maybe do after normal streaming?
+        streamMass(collideField, density, flagField, length, mass); // Maybe do after normal streaming?
         std::swap(collideField, streamField);
-        doCollision(collideField, mass, density, flagField, tau, gravity, length, filled, emptied);
-        getPotentialUpdates(mass, density, flagField, emptied, filled,
-                            length);
-        flagReinit(collideField, mass, density, filled, emptied, length, flagField);
-        distributeMass(collideField, mass, density, filled, emptied, length, flagField);
+        doCollision(collideField, mass, density, flagField, tau, gravity, length);
+        getPotentialUpdates(mass, density, length, flagField);
+        flagReinit(collideField, mass, density, length, flagField);
+        distributeMass(collideField, mass, density, length, flagField);
 
         const double stepSizeBefore = stepSize;
         // TODO: Use a delay for increasing (maybe).

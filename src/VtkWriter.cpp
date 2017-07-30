@@ -1,3 +1,4 @@
+#include <assert.h>
 #include "VtkWriter.hpp"
 
 VtkWriter::VtkWriter(const std::string &filenameRoot, const coord_t &length)
@@ -40,26 +41,30 @@ void VtkWriter::write(const std::vector<double> &collideField, const std::vector
        << "\nLOOKUP_TABLE default\n\n";
 
     for (size_t i = 0; i < density.size(); ++i) {
-        if (flagField[i] != flag_t::PARALLEL_BOUNDARY) {
-            os << density[i] << '\n';
-        }
+        os << density[i] << '\n';
     }
 
     os << "\nSCALARS cell_type int 1"
        << "\nLOOKUP_TABLE default\n\n";
 
+    int nEmpty, nIf;
+    nEmpty = 0;
+    nIf = 0;
     for (size_t i = 0; i < density.size(); ++i) {
-        if (flagField[i] != flag_t::PARALLEL_BOUNDARY) {
-            os << static_cast<int>(flagField[i]) << '\n';
+        if (flagField[i] == flag_t::EMPTY) {
+            nEmpty++;
         }
+        if (flagField[i] == flag_t::INTERFACE) {
+            nIf++;
+        }
+        os << static_cast<int>(flagField[i]) << '\n';
     }
+    std::cout << "nEmpty = " << nEmpty << " nIf = " << nIf << std::endl;
 
     os << "\nSCALARS mass float 1"
        << "\nLOOKUP_TABLE default\n\n";
 
     for (size_t i = 0; i < mass.size(); ++i) {
-        if (flagField[i] != flag_t::PARALLEL_BOUNDARY) {
-            os << mass[i] << '\n';
-        }
+        os << mass[i] << '\n';
     }
 }
