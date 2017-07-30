@@ -22,7 +22,8 @@ double calculateSE(const std::vector<double> &distributions, const std::vector<f
 // Corresponds to section 4.3.
 // TODO: Find better name!
 void getPotentialUpdates(const std::vector<double> &mass, const std::vector<double> &density,
-                         gridSet_t &filled, gridSet_t &emptied, const coord_t &length);
+                         const std::vector<flag_t> &flags, gridSet_t &emptied, gridSet_t &filled,
+                         const coord_t &length);
 
 void flagReinit(std::vector<double> distributions, std::vector<double> &mass,
                 std::vector<double> &density, gridSet_t &filled, gridSet_t &emptied,

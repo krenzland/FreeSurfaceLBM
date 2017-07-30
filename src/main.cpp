@@ -61,7 +61,8 @@ int main(int argc, char *argv[]) {
         streamMass(streamField, density, flagField, length, mass); // Maybe do after normal streaming?
         std::swap(collideField, streamField);
         doCollision(collideField, mass, density, flagField, tau, gravity, length, filled, emptied);
-        getPotentialUpdates(mass, density, filled, emptied, length);
+        getPotentialUpdates(mass, density, flagField, emptied, filled,
+                            length);
         flagReinit(collideField, mass, density, filled, emptied, length, flagField);
         distributeMass(collideField, mass, density, filled, emptied, length, flagField);
 

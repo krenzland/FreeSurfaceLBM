@@ -154,7 +154,8 @@ double calculateSE(const std::vector<double> &distributions, const std::vector<f
 }
 
 void getPotentialUpdates(const std::vector<double> &mass, const std::vector<double> &density,
-                         gridSet_t &filled, gridSet_t &emptied, const coord_t &length) {
+                         const std::vector<flag_t> &flags, gridSet_t &emptied, gridSet_t &filled,
+                         const coord_t &length) {
     // Check whether we have to convert the interface to an emptied or fluid cell.
     // Doesn't actually update the flags but pushes them to a queue.
     // We do this here so we do not have to calculate the density again.
@@ -166,6 +167,7 @@ void getPotentialUpdates(const std::vector<double> &mass, const std::vector<doub
             for (int x = 0; x < length[0] + 2; ++x) {
                 auto coord = coord_t{x, y, z};
                 const int flagIndex = indexForCell(coord, length);
+                if (flags[flagIndex] != flag_t::INTERFACE) continue;
                 // Eq. 4.7
                 if (mass[flagIndex] > (1 + offset) * density[flagIndex]) {
                     filled.insert(coord);
