@@ -49,24 +49,21 @@ void VtkWriter::write(const std::vector<double> &collideField, const std::vector
     os << "\nSCALARS cell_type int 1"
        << "\nLOOKUP_TABLE default\n\n";
 
-    int nEmpty, nIf;
-    nEmpty = 0;
-    nIf = 0;
     for (size_t i = 0; i < density.size(); ++i) {
-        if (flagField[i] == flag_t::EMPTY) {
-            nEmpty++;
-        }
-        if (flagField[i] == flag_t::INTERFACE) {
-            nIf++;
-        }
         os << static_cast<int>(flagField[i]) << '\n';
     }
-    std::cout << "nEmpty = " << nEmpty << " nIf = " << nIf << std::endl;
 
     os << "\nSCALARS mass float 1"
        << "\nLOOKUP_TABLE default\n\n";
 
     for (size_t i = 0; i < mass.size(); ++i) {
         os << mass[i] << '\n';
+    }
+
+    os << "\nSCALARS volumeOfFluid float 1"
+       << "\nLOOKUP_TABLE default\n\n";
+
+    for (size_t i = 0; i < mass.size(); ++i) {
+        os << mass[i] / density[i] << '\n';
     }
 }

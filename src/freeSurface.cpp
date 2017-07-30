@@ -42,16 +42,16 @@ std::array<double, 3> computeSurfaceNormal(const std::vector<double> &distributi
 }
 
 void streamMass(const std::vector<double> &distributions, const std::vector<double> &density,
-                const std::vector<flag_t> &flags, const coord_t &length,
-                std::vector<double> &mass) {
-#pragma omp parallel for
+                const std::vector<flag_t> &flags, const coord_t &length, std::vector<double> &mass,
+                const std::vector<neighborhood_t> &neighborhood) {
+#pragma omp parallel for schedule(static)
     for (int z = 0; z < length[2] + 2; ++z) {
         for (int y = 0; y < length[1] + 2; ++y) {
             for (int x = 0; x < length[0] + 2; ++x) {
                 double deltaMass = 0.0;
 
                 const coord_t curCell = coord_t{x, y, z};
-                const int flagIndex = indexForCell(x, y, z, length);
+                const int flagIndex = indexForCell(curCell, length);
                 // We only consider the mass going into interface cells.
                 // Empty cells have zero mass, full cells have mass 1.
                 if (flags[flagIndex] != flag_t::INTERFACE)
@@ -77,12 +77,8 @@ void streamMass(const std::vector<double> &distributions, const std::vector<doub
                         const double neighFluidFraction =
                             computeFluidFraction(density, mass, flags, neighFlag);
                         // Exchange interface and interface at x + \Delta t e_i (eq. 4.2)
-                        // TODO: (maybe) substitute s_e with values from table 4.1
-                        // const double s_e = distributions[neighFlag * Q + inverseVelocityIndex(i)]
-                        // -
-                        //                   distributions[fieldIndex + i];
-
-                        const double s_e = calculateSE(distributions, flags, curCell, length, i);
+                        const double s_e =
+                            calculateSE(distributions, flags, curCell, length, i, neighborhood);
                         deltaMass += s_e * 0.5 * (curFluidFraction + neighFluidFraction);
                     }
                 }
@@ -93,78 +89,49 @@ void streamMass(const std::vector<double> &distributions, const std::vector<doub
 }
 
 double calculateSE(const std::vector<double> &distributions, const std::vector<flag_t> &flags,
-                   const coord_t &curCell, const coord_t &length, const int curFiIndex) {
-
-    // TODO: dont need to check the type every time, once is enough
-    // check cell type of x
-    bool x_hasNoFluidNeigh = true;
-    bool x_hasNoEmptyNeigh = true;
-    for (int i = 0; i < Q; ++i) {
-        const auto &vel = LATTICEVELOCITIES[i];
-        const auto x_nb = coord_t{curCell[0] + vel[0], curCell[1] + vel[1], curCell[2] + vel[2]};
-        const auto x_nb_flag = indexForCell(x_nb, length);
-
-        if (flags[x_nb_flag] == flag_t::FLUID) {
-            x_hasNoFluidNeigh = false;
-        }
-        if (flags[x_nb_flag] == flag_t::EMPTY) {
-            x_hasNoEmptyNeigh = false;
-        }
-    }
+                   const coord_t &coord, const coord_t &length, const int curFiIndex,
+                   const std::vector<neighborhood_t> &neighborhood) {
+    // Returns a slightly different mass exchange depending on the neighbourhood of the cells.
+    // This reduces the amount of abandoned interface cells.
 
     const auto &vel = LATTICEVELOCITIES[curFiIndex];
-    const auto x_nb = coord_t{curCell[0] + vel[0], curCell[1] + vel[1], curCell[2] + vel[2]};
+    const auto neigh = coord_t{coord[0] + vel[0], coord[1] + vel[1], coord[2] + vel[2]};
 
-    // check for cell type of x_nb
-    bool x_nb_hasNoFluidNeigh = true;
-    bool x_nb_hasNoEmptyNeigh = true;
-    for (int i = 0; i < Q; ++i) {
-        const auto &v = LATTICEVELOCITIES[i];
-        const auto xnb_nb = coord_t{x_nb[0] + v[0], x_nb[1] + v[1], x_nb[2] + v[2]};
-        const auto xnb_nb_flag = indexForCell(xnb_nb, length);
+    const int curFlag = indexForCell(coord, length);
+    const int neighFlag = indexForCell(neigh, length);
 
-        if (flags[xnb_nb_flag] == flag_t::FLUID) {
-            x_nb_hasNoFluidNeigh = false;
-        }
-        if (flags[xnb_nb_flag] == flag_t::EMPTY) {
-            x_nb_hasNoEmptyNeigh = false;
-        }
+    const int curCell = curFlag * Q;
+    const int neighCell = neighFlag * Q;
+
+    const int inv = inverseVelocityIndex(curFiIndex);
+
+    if (neighborhood[curFlag] == neighborhood[neighFlag]) {
+        return distributions[neighCell + inv] - distributions[curCell + curFiIndex];
     }
 
-    bool x_isStandardCell = !(x_hasNoFluidNeigh && x_hasNoEmptyNeigh);
-    bool x_nb_isStandardCell = !(x_nb_hasNoFluidNeigh && x_nb_hasNoEmptyNeigh);
-
-    if ((x_isStandardCell && x_nb_isStandardCell) || (x_hasNoFluidNeigh && x_nb_hasNoFluidNeigh) ||
-        (x_hasNoEmptyNeigh && x_hasNoFluidNeigh)) {
-
-        return distributions[indexForCell(x_nb, length) * Q + inverseVelocityIndex(curFiIndex)] -
-               distributions[indexForCell(curCell, length) * Q + curFiIndex];
+    if ((neighborhood[neighFlag] == neighborhood_t::STANDARD &&
+         neighborhood[curFlag] == neighborhood_t::NO_FLUID_NEIGHBORS) ||
+        (neighborhood[neighFlag] == neighborhood_t::NO_EMPTY_NEIGHBORS &&
+         (neighborhood[curFlag] == neighborhood_t::STANDARD ||
+          neighborhood[curFlag] == neighborhood_t::NO_FLUID_NEIGHBORS))) {
+        return -distributions[neighCell + curFiIndex];
     }
 
-    if ((x_isStandardCell && x_nb_hasNoFluidNeigh) || (x_hasNoEmptyNeigh && x_nb_isStandardCell) ||
-        (x_hasNoEmptyNeigh && x_nb_hasNoFluidNeigh)) {
-
-        return distributions[indexForCell(x_nb, length) * Q + inverseVelocityIndex(curFiIndex)];
-    }
-
-    if ((x_isStandardCell && x_nb_hasNoEmptyNeigh) || (x_hasNoFluidNeigh && x_nb_isStandardCell) ||
-        (x_hasNoFluidNeigh && x_nb_hasNoEmptyNeigh)) {
-        return -distributions[indexForCell(curCell, length) * Q + curFiIndex];
-    }
-
-    return distributions[indexForCell(x_nb, length) * Q + inverseVelocityIndex(curFiIndex)] -
-           distributions[indexForCell(curCell, length) * Q + curFiIndex];
+    // Otherwise: (neigh == STANDARD && cur = NO_EMPTY) || (neigh = NO_FLUID && (cur = STANDARD ||
+    // cur NO_EMPTY)
+    return distributions[neighCell + inv];
 }
 
 void getPotentialUpdates(const std::vector<double> &mass, const std::vector<double> &density,
-                         const coord_t &length, std::vector<flag_t> &flags) {
+                         const coord_t &length, std::vector<flag_t> &flags,
+                         std::vector<neighborhood_t> &neighborhood) {
     // Check whether we have to convert the interface to an emptied or fluid cell.
     // Doesn't actually update the flags but pushes them to a queue.
     // We do this here so we do not have to calculate the density again.
 
     // Offset avoids periodically switching between filled and empty status.
     const double offset = 10e-3;
-#pragma omp parallel for schedule(static)
+#pragma omp parallel for schedule(guided)
     for (int z = 0; z < length[2] + 2; ++z) {
         for (int y = 0; y < length[1] + 2; ++y) {
             for (int x = 0; x < length[0] + 2; ++x) {
@@ -178,6 +145,14 @@ void getPotentialUpdates(const std::vector<double> &mass, const std::vector<doub
                 } else if (mass[flagIndex] < -offset * density[flagIndex]) {
                     // Emptied
                     flags[flagIndex] = flag_t::INTERFACE_TO_EMPTY;
+                }
+                if (neighborhood[flagIndex] == neighborhood_t::NO_FLUID_NEIGHBORS &&
+                    mass[flagIndex] < (0.1 * density[flagIndex])) {
+                    flags[flagIndex] = flag_t::INTERFACE_TO_EMPTY;
+                }
+                if (neighborhood[flagIndex] == neighborhood_t::NO_EMPTY_NEIGHBORS &&
+                    mass[flagIndex] > (0.9 * density[flagIndex])) {
+                    flags[flagIndex] = flag_t::INTERFACE_TO_FLUID;
                 }
             }
         }
@@ -237,15 +212,11 @@ void interpolateEmptyCell(std::vector<double> &distributions, std::vector<double
 
 void flagReinit(std::vector<double> &distributions, std::vector<double> &mass,
                 std::vector<double> &density, const coord_t &length, std::vector<flag_t> &flags) {
-// First consider all filled cells.
-
-// Store all new fluid cells with no valid distributions.
-// We need to process them after the cells have been converted to interface cells because
-// otherwise the interpolation
-// depends on the processing order.
+    // We set up the interface cells around all converted cells.
+    // It's very important to do this in a way such that the order of conversion doesn't matter.
 
 // First set interface for all filled cells.
-#pragma omp parallel for
+#pragma omp parallel for schedule(guided)
     for (int z = 1; z < length[2] + 1; ++z) {
         for (int y = 1; y < length[1] + 1; ++y) {
             for (int x = 1; x < length[0] + 1; ++x) {
@@ -262,19 +233,15 @@ void flagReinit(std::vector<double> &distributions, std::vector<double> &mass,
                     if (curFlag == neighFlag)
                         continue;
 
-                    // This neighbor is converted to an interface cell iff. it is an empty cell or a
-                    // cell
-                    // that would become an emptied cell.
-                    // We need to remove it from the emptied set, otherwise we might have holes in
-                    // the
-                    // interface.
+                    // This neighbor is converted to an interface cell iff. it is an empty cell or a cell that would
+                    // become an emptied cell.
+                    // We need to remove it from the emptied set, otherwise we might have holes in the interface.
                     if (flags[neighFlag] == flag_t::EMPTY) {
                         flags[neighFlag] = flag_t::INTERFACE;
                         mass[neighFlag] = 0.0;
                         // Notice that the new interface cells don't have any valid distributions.
-                        // They are initialised with f^{eq}_i (p_{avg}, v_{avg}), which are the
-                        // average
-                        // density and velocity of all neighbouring fluid and interface cells.
+                        // They are initialised with f^{eq}_i (p_{avg}, v_{avg}), which are the average density and
+                        // velocity of all neighbouring fluid and interface cells.
                         interpolateEmptyCell(distributions, density, length, flags, neighbor);
                     } else if (flags[neighFlag] == flag_t::INTERFACE_TO_EMPTY) {
                         // Already is an interface but should not be converted to an empty cell
@@ -287,7 +254,7 @@ void flagReinit(std::vector<double> &distributions, std::vector<double> &mass,
     }
 
 // Now we can consider all filled cells!
-#pragma omp parallel for
+#pragma omp parallel for schedule(guided)
     for (int z = 1; z < length[2] + 1; ++z) {
         for (int y = 1; y < length[1] + 1; ++y) {
             for (int x = 1; x < length[0] + 1; ++x) {
@@ -304,12 +271,9 @@ void flagReinit(std::vector<double> &distributions, std::vector<double> &mass,
                     if (curFlag == neighFlag)
                         continue;
 
-                    // This neighbor is converted to an interface cell iff. it is an empty cell or a
-                    // cell
-                    // that would become an emptied cell.
-                    // We need to remove it from the emptied set, otherwise we might have holes in
-                    // the
-                    // interface.
+                    // This neighbor is converted to an interface cell iff. it is an empty cell or a cell that would
+                    // become an emptied cell.
+                    // We need to remove it from the emptied set, otherwise we might have holes in the interface.
                     if (flags[neighFlag] == flag_t::FLUID) {
                         flags[neighFlag] = flag_t::INTERFACE;
                         mass[neighFlag] = density[neighFlag];
@@ -335,12 +299,10 @@ void distributeSingleMass(const std::vector<double> &distributions, std::vector<
         // Interface -> Full cell, filled cells have mass and should have a mass equal to their
         // density.
         excessMass = mass[flagIndex] - density[flagIndex];
-        assert(excessMass >= 0.0);
         mass[flagIndex] = density[flagIndex];
     } else {
         // Interface -> Empty cell, empty cells should not have any mass so all mass is excess mass.
         excessMass = mass[flagIndex];
-        assert(excessMass < 0.0); // Follows from the offset!
         mass[flagIndex] = 0.0;
     }
 
@@ -359,7 +321,6 @@ void distributeSingleMass(const std::vector<double> &distributions, std::vector<
     std::array<double, 19> weights{};
     std::array<double, 19> weightsBackup{}; // Sometimes first weights is all zero.
 
-#pragma omp parallel for
     for (size_t i = 0; i < LATTICEVELOCITIES.size(); ++i) {
         const auto &vel = LATTICEVELOCITIES[i];
         coord_t neighbor = {coord[0] + vel[0], coord[1] + vel[1], coord[2] + vel[2]};
@@ -388,25 +349,20 @@ void distributeSingleMass(const std::vector<double> &distributions, std::vector<
         normalizer = std::accumulate(weights.begin(), weights.end(), 0.0, std::plus<double>());
     }
     if (normalizer == 0.0) {
-        // Mass cannot be distributed even with the backup plan, it's leaked now.
-        /*        static double lostMass;
-
-                #pragma omp critical
-                { lostMass += std::abs(excessMass); } // TODO: Remove debugging.
-
-                std::cout << "Lost " << lostMass << " mass!" << std::endl; */
         return;
     }
 
-// Step 3: Redistribute weights. As non-interface cells have weight 0, we can just loop through
-// all cells.
-#pragma omp parallel for
+    // Step 3: Redistribute weights. As non-interface cells have weight 0, we can just loop through
+    // all cells.
     for (size_t i = 0; i < LATTICEVELOCITIES.size(); ++i) {
         const auto &vel = LATTICEVELOCITIES[i];
         coord_t neighbor = {coord[0] + vel[0], coord[1] + vel[1], coord[2] + vel[2]};
 
         const int neighFlag = indexForCell(neighbor, length);
+
+#pragma omp atomic
         massChange[neighFlag] += (weights[i] / normalizer) * excessMass;
+        ;
     }
 }
 
@@ -419,6 +375,7 @@ void distributeMass(const std::vector<double> &distributions, std::vector<double
     // This excludes emptied cells that are used as interface cells instead!
     auto massChange = std::vector<double>(mass.size(), 0.0);
 
+#pragma omp parallel for schedule(guided)
     for (int z = 1; z < length[2] + 1; ++z) {
         for (int y = 1; y < length[1] + 1; ++y) {
             for (int x = 1; x < length[0] + 1; ++x) {
@@ -437,7 +394,7 @@ void distributeMass(const std::vector<double> &distributions, std::vector<double
         }
     }
 
-#pragma omp parallel for
+#pragma omp parallel for schedule(static)
     for (size_t i = 0; i < mass.size(); ++i) {
         mass[i] += massChange[i];
     }

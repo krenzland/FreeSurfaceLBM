@@ -126,6 +126,7 @@ void initialiseInterface(std::vector<double> &distributions, std::vector<double>
                         const int neighFlag = indexForCell(neigh, length);
                         if (flags[neighFlag] == flag_t::EMPTY) {
                             newFlags[neighFlag] = flag_t::INTERFACE;
+                            mass[neighFlag] = 0.5;
                         }
                     }
                 }

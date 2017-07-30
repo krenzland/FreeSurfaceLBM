@@ -40,7 +40,7 @@ std::pair<double, double> adaptTimestep(std::vector<double> &distributions,
     const double timeRatio = newTimeStep / oldTimeStep;
     const double newTau = timeRatio * (oldTau - 0.5) + 0.5;
     const double tauRatio = timeRatio * ((1.0 / oldTau) / (1.0 / newTau));
-    if (newTau < (1.0 / 1.99)) {
+    if (newTau < (1.0 / 1.99) || newTimeStep > 2.0) {
         // Time step would be too small!
         return std::pair<double, double>(oldTau, oldTimeStep);
     }

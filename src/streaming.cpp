@@ -2,6 +2,7 @@
 #include "LBMHelper.hpp"
 #include "freeSurface.hpp"
 #include <assert.h>
+#include <iostream>
 
 int neighbouring_fi_cell_index(int x, int y, int z, int fi, const coord_t &length) {
     int new_x = x - LATTICEVELOCITIES[fi][0];
@@ -13,7 +14,8 @@ int neighbouring_fi_cell_index(int x, int y, int z, int fi, const coord_t &lengt
 
 void doStreaming(const std::vector<double> &collideField, std::vector<double> &streamField,
                  const std::vector<double> &mass, std::vector<double> &density,
-                 const coord_t &length, const std::vector<flag_t> &flagField) {
+                 const coord_t &length, const std::vector<flag_t> &flagField,
+                 std::vector<neighborhood_t> &neighborhood) {
 #pragma omp parallel for schedule(static)
     for (int z = 0; z < length[2] + 2; ++z) {
         for (int y = 0; y < length[1] + 2; ++y) {
@@ -43,6 +45,9 @@ void doStreaming(const std::vector<double> &collideField, std::vector<double> &s
                     const auto normal =
                         computeSurfaceNormal(collideField, density, flagField, length, mass, coord);
 
+                    bool hasFluidNeighbors = false;
+                    bool hasEmptyNeighbors = false;
+
                     for (int i = 0; i < Q; ++i) {
                         const auto &vel = LATTICEVELOCITIES[i];
                         const int neighFlag =
@@ -51,6 +56,11 @@ void doStreaming(const std::vector<double> &collideField, std::vector<double> &s
                             continue;
 
                         const bool isEmptyAdjacent = flagField[neighFlag] == flag_t::EMPTY;
+
+                        hasFluidNeighbors =
+                            hasFluidNeighbors || (flagField[neighFlag] == flag_t::FLUID);
+                        hasEmptyNeighbors =
+                            hasEmptyNeighbors || flagField[neighFlag] == flag_t::EMPTY;
 
                         const int inv = inverseVelocityIndex(i);
                         const auto &invVelocity = LATTICEVELOCITIES[inv];
@@ -74,6 +84,14 @@ void doStreaming(const std::vector<double> &collideField, std::vector<double> &s
                             streamField[fieldIndex + i] =
                                 feq[inv] + feq[i] - collideField[fieldIndex + inv];
                         }
+                    }
+                    const bool isStandardCell = (hasEmptyNeighbors && hasFluidNeighbors);
+                    if (isStandardCell) {
+                        neighborhood[flagIndex] = neighborhood_t::STANDARD;
+                    } else if (!hasFluidNeighbors) {
+                        neighborhood[flagIndex] = neighborhood_t::NO_FLUID_NEIGHBORS;
+                    } else if (!hasEmptyNeighbors) {
+                        neighborhood[flagIndex] = neighborhood_t::NO_EMPTY_NEIGHBORS;
                     }
                 }
             }

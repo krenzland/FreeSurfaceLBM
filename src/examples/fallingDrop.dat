@@ -4,8 +4,8 @@ ylength                         64
 zlength                         64
 
 timesteps                       1500
-timestepsPerPlotting            50
-tau                             0.65
+timestepsPerPlotting            100
+tau                             0.58
 
 # Boundary Conditions
 bcLeft                          NO_SLIP
@@ -17,9 +17,9 @@ bcBack                          NO_SLIP
 
 # Settings for scenarios
 scenario                        fallingDrop
-dropRadius 			12
-dropHeight 			45
-dropWaterHeight			20
+dropRadius 			6
+dropHeight 			57
+dropWaterHeight			16
 
 velocityWallX                   0.0
 velocityWallY                   0.0

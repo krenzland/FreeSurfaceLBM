@@ -18,14 +18,17 @@ std::array<double, 3> computeSurfaceNormal(const std::vector<double> &distributi
                                            const coord_t &position);
 
 void streamMass(const std::vector<double> &distributions, const std::vector<double> &density,
-                const std::vector<flag_t> &flags, const coord_t &length, std::vector<double> &mass);
+                const std::vector<flag_t> &flags, const coord_t &length, std::vector<double> &mass,
+                const std::vector<neighborhood_t> &neighborhood);
 
 double calculateSE(const std::vector<double> &distributions, const std::vector<flag_t> &flags,
-                   const coord_t &curCell, const coord_t &length, const int curFiIndex);
+                   const coord_t &coord, const coord_t &length, const int curFiIndex,
+                   const std::vector<neighborhood_t> &neighborhood);
 // Corresponds to section 4.3.
 // TODO: Find better name!
 void getPotentialUpdates(const std::vector<double> &mass, const std::vector<double> &density,
-                         const coord_t &length, std::vector<flag_t> &flags);
+                         const coord_t &length, std::vector<flag_t> &flags,
+                         std::vector<neighborhood_t> &neighborhood);
 void flagReinit(std::vector<double> &distributions, std::vector<double> &mass,
                 std::vector<double> &density, const coord_t &length, std::vector<flag_t> &flags);
 

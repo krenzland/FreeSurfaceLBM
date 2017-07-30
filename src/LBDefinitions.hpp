@@ -41,6 +41,14 @@ enum class flag_t {
     INTERFACE_TO_EMPTY = 12,
 };
 
+// Determines the neighborhood of interface cells.
+// Theoretically we could combine flag_t and this type into a bitfield.
+enum class neighborhood_t {
+    STANDARD,
+    NO_FLUID_NEIGHBORS,
+    NO_EMPTY_NEIGHBORS,
+};
+
 // This is needed to parse the config file.
 const auto stringToFlag =
     std::unordered_map<std::string, flag_t>({{"FLUID", flag_t::FLUID},
