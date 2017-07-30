@@ -229,7 +229,7 @@ void interpolateEmptyCell(std::vector<double> &distributions, std::vector<double
     }
 }
 
-void flagReinit(std::vector<double> distributions, std::vector<double> &mass,
+void flagReinit(std::vector<double> &distributions, std::vector<double> &mass,
                 std::vector<double> &density, gridSet_t &filled, gridSet_t &emptied,
                 const coord_t &length, std::vector<flag_t> &flags) {
     // First consider all filled cells.

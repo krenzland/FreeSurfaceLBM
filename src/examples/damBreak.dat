@@ -3,9 +3,9 @@ xlength                         30
 ylength                         30
 zlength                         30
 
-timesteps                       2000
+timesteps                       4000
 timestepsPerPlotting            50
-tau                             1.2
+tau                             0.7
 
 # Boundary Conditions
 bcLeft                          NO_SLIP
@@ -32,4 +32,4 @@ pressureIn                      0.0
 # External forces
 gravityX			0.0
 gravityY			0.0
-gravityZ			-0.0005
+gravityZ			-0.0008
