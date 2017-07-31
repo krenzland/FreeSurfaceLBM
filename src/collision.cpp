@@ -32,10 +32,12 @@ void doCollision(std::vector<double> &distributions, std::vector<double> &mass,
 
                 curDensity = computeDensity(&distributions[distrIndex]);
                 computeVelocity(&distributions[distrIndex], curDensity, velocity);
+
                 // apply gravity to velocity
                 for (int i = 0; i < 3; ++i) {
                     velocity[i] += gravity[i] * tau;
                 }
+
                 computeFeq(curDensity, velocity, feq);
 
                 double localTau;
@@ -47,7 +49,6 @@ void doCollision(std::vector<double> &distributions, std::vector<double> &mass,
                     localTau = tau;
                 }
 
-                computeFeq(curDensity, velocity, feq);
                 computePostCollisionDistributions(&distributions[distrIndex], localTau, feq);
 
                 curDensity = computeDensity(&distributions[distrIndex]);
