@@ -46,12 +46,13 @@ std::pair<double, double> adaptTimestep(std::vector<double> &distributions,
     if (smagorinskyConstant > 0.0) {
         // Use turbulence model.
         // No minimum time step.
-        minimumTau = 0.0;
+        minimumTau = 0.5;
     } else {
         minimumTau = (1.0) / 1.99;
     }
 
-    if (newTau < minimumTau || newTimeStep > 2.0) {
+    if (newTau <= minimumTau) {
+        std::cout << "Refused time step " << newTau << std::endl;
         return std::pair<double, double>(oldTau, oldTimeStep);
     }
 

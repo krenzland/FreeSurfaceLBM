@@ -1,9 +1,9 @@
 # Settings for simulation
 xlength                         64
 ylength                         64
-zlength                         64
+zlength                         80
 
-timesteps                       1500
+timesteps                       2000
 timestepsPerPlotting            100
 tau                             0.53
 smagorinskyConstant		0.04
