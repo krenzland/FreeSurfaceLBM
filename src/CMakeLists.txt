@@ -32,7 +32,7 @@ set(sources
         VtkWriter.hpp
         freeSurface.cpp
         timeStep.hpp
-        timeStep.cpp scenarios/Scenario.hpp scenarios/OnlyWater.cpp scenarios/OnlyWater.hpp scenarios/DamBreak.cpp scenarios/DamBreak.hpp scenarios/FallingDrop.cpp scenarios/FallingDrop.hpp scenarios/CornerDamBreak.cpp scenarios/CornerDamBreak.hpp)
+        timeStep.cpp scenarios/Scenario.hpp scenarios/OnlyWater.cpp scenarios/OnlyWater.hpp scenarios/DamBreak.cpp scenarios/DamBreak.hpp scenarios/FallingDrop.cpp scenarios/FallingDrop.hpp scenarios/CornerDamBreak.cpp scenarios/CornerDamBreak.hpp scenarios/MiddleWall.cpp scenarios/MiddleWall.hpp)
 
 add_executable(lbsim ${sources})
 target_include_directories(lbsim PUBLIC ./)

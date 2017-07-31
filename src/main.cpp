@@ -75,6 +75,7 @@ int main(int argc, char *argv[]) {
         if ((t - lastOutput) > timestepsPerPlotting) {
             lastOutput = t;
             writer.write(collideField, mass, density, flagField, stepSize, fileNum++);
+//            writer.writeMass(mass, fileNum++);
         }
     }
 
