@@ -1,22 +1,18 @@
 #include "timeStep.hpp"
 #include <iostream>
 
-std::pair<double, double> adaptTimestep(std::vector<double> &distributions,
-                                        std::vector<double> &density, std::vector<double> &mass,
-                                        std::vector<flag_t> &flags,
-                                        std::array<double, 3> &gravitation, double oldTimeStep,
-                                        double oldTau, double smagorinskyConstant,
-                                        bool allowIncrease) {
+std::pair<double, double> adaptTimestep(std::vector<double> &distributions, std::vector<double> &fluidFraction, std::vector<double> &mass,
+                                        std::vector<flag_t> &flags, std::array<double, 3> &gravitation, double oldTimeStep, double oldTau,
+                                        double smagorinskyConstant, bool allowIncrease) {
     // We resize the timestep if the maximum velocity is too large.
     double maximumVelocityNorm = 0.0;
-
 #pragma omp parallel for reduction(max : maximumVelocityNorm)
     for (size_t i = 0; i < flags.size(); ++i) {
         if (flags[i] != flag_t::FLUID && flags[i] != flag_t::INTERFACE)
             continue;
 
         const auto fieldIndex = i * Q;
-        const auto curDensity = density[i];
+        const auto curDensity = computeDensity(&distributions[fieldIndex]);
         std::array<double, 3> velocity;
         computeVelocity(&distributions[fieldIndex], curDensity, velocity.data());
         const double curNorm = std::sqrt(velocity[0] * velocity[0] + velocity[1] * velocity[1] +
@@ -63,14 +59,15 @@ std::pair<double, double> adaptTimestep(std::vector<double> &distributions,
 
     double totalFluidVolume = 0.0;
     double totalMass = 0.0;
-#pragma omp parallel for reduction(+ : totalFluidVolume, totalMass)
+// TODO: Find out why this leads to an ultra evil race condition!
+//#pragma omp parallel for reduction(+:totalFluidVolume) reduction(+:totalMass)
     for (size_t i = 0; i < flags.size(); ++i) {
         if (flags[i] == flag_t::FLUID) {
+            totalMass += mass[i];
             ++totalFluidVolume;
-            totalMass += density[i];
         } else if (flags[i] == flag_t::INTERFACE) {
             totalMass += mass[i];
-            totalFluidVolume += mass[i] / density[i];
+            totalFluidVolume += fluidFraction[i];
         }
     }
     const double medianDensity = totalFluidVolume / totalMass;
@@ -80,8 +77,8 @@ std::pair<double, double> adaptTimestep(std::vector<double> &distributions,
     std::array<double, 3> newVelocity;
     std::array<double, Q> oldFeq;
     std::array<double, Q> newFeq;
-#pragma omp parallel for private(oldVelocity, newVelocity, oldFeq, newFeq)
-    for (size_t i = 0; i < density.size(); ++i) {
+#pragma omp parallel for private(oldVelocity, newVelocity, oldFeq, newFeq, newTimeStep)
+    for (size_t i = 0; i < mass.size(); ++i) {
         // No need to rescale distributions of boundary cells, they are generated in each time step
         // anyway.
         if (flags[i] != flag_t::FLUID && flags[i] != flag_t::INTERFACE)
@@ -89,10 +86,10 @@ std::pair<double, double> adaptTimestep(std::vector<double> &distributions,
 
         const auto fieldIndex = i * Q;
 
-        const double oldDensity = density[i];
-        const double newDensity = timeRatio * (density[i] - medianDensity) + medianDensity;
+        const double oldDensity = computeDensity(&distributions[fieldIndex]);//mass[i]/fluidFraction[i];
+        const double newDensity = timeRatio * (oldDensity - medianDensity) + medianDensity;
 
-        computeVelocity(&distributions[fieldIndex], density[i], oldVelocity.data());
+        computeVelocity(&distributions[fieldIndex], oldDensity, oldVelocity.data());
         newVelocity = oldVelocity;
         for (auto &v : newVelocity) {
             v *= timeRatio;
@@ -109,7 +106,7 @@ std::pair<double, double> adaptTimestep(std::vector<double> &distributions,
             const double oldLocalTau =
                 computeLocalRelaxationTime(oldTau, oldStress, smagorinskyConstant);
             const double newStress =
-                computeStressTensor(distributions, newFeq.data(), static_cast<int>(fieldIndex));
+                computeStressTensor(distributions, oldFeq.data(), static_cast<int>(fieldIndex));
             const double newLocalTau =
                 computeLocalRelaxationTime(newTau, newStress, smagorinskyConstant);
             tauRatio = timeRatio * (newLocalTau / oldLocalTau);
@@ -126,8 +123,8 @@ std::pair<double, double> adaptTimestep(std::vector<double> &distributions,
         if (flags[i] == flag_t::INTERFACE) {
             // We also need to track the change in mass!
             mass[i] = mass[i] * (oldDensity / newDensity);
+            fluidFraction[i] = mass[i] / newDensity;
         }
-        density[i] = newDensity;
     }
 
     return std::pair<double, double>(newTau, newTimeStep);

@@ -5,8 +5,7 @@ VtkWriter::VtkWriter(const std::string &filenameRoot, const coord_t &length)
     : filenameRoot(filenameRoot), length(length) {}
 
 void VtkWriter::write(const std::vector<double> &collideField, const std::vector<double> &mass,
-                      const std::vector<double> &density, const std::vector<flag_t> &flagField,
-                      double stepSize, int t) {
+                      const std::vector<flag_t> &flagField, double stepSize, int t, std::vector<double> &fluidFraction) {
     std::stringstream filenameBuilder;
     // Filename is of the format name_i_j_k.t, where ijk are the mpi
     filenameBuilder << filenameRoot << "." << t << ".vtk";
@@ -31,6 +30,12 @@ void VtkWriter::write(const std::vector<double> &collideField, const std::vector
     const auto noCells = (length[0] + 2) * (length[1] + 2) * (length[2] + 2);
 
     os << "POINT_DATA " << noCells << "\nVECTORS velocity float\n\n";
+
+    // Precompute density for all cells
+    auto density = std::vector<double>(fluidFraction.size());
+    for (size_t i = 0; i < density.size(); ++i ) {
+            density[i] = computeDensity(&collideField[i * Q]);
+    }
 
     double velocity[3] = {0};
     for (size_t i = 0; i < density.size(); ++i) {
@@ -63,8 +68,8 @@ void VtkWriter::write(const std::vector<double> &collideField, const std::vector
     os << "\nSCALARS volumeOfFluid float 1"
        << "\nLOOKUP_TABLE default\n\n";
 
-    for (size_t i = 0; i < mass.size(); ++i) {
-        os << mass[i] / density[i] << '\n';
+    for (size_t i = 0; i < fluidFraction.size(); ++i) {
+        os << fluidFraction[i] << '\n';
     }
 }
 

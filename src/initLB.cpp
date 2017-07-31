@@ -116,9 +116,8 @@ void initialiseFlagField(std::vector<flag_t> &flagField, std::unique_ptr<Scenari
     }
 }
 
-void initialiseInterface(std::vector<double> &distributions, std::vector<double> &mass,
-                         std::vector<double> &density, const coord_t &length,
-                         std::vector<flag_t> &flags) {
+void initialiseInterface(std::vector<double> &distributions, std::vector<double> &mass, std::vector<double> &fluidFraction,
+                         const coord_t &length, std::vector<flag_t> &flags) {
     auto newFlags = flags;
     for (int z = 1; z < length[2] + 1; ++z) {
         for (int y = 1; y < length[1] + 1; ++y) {
@@ -132,6 +131,7 @@ void initialiseInterface(std::vector<double> &distributions, std::vector<double>
                         if (flags[neighFlag] == flag_t::EMPTY) {
                             newFlags[neighFlag] = flag_t::INTERFACE;
                             mass[neighFlag] = 0.5;
+                            fluidFraction[neighFlag] = 0.5;
                         }
                     }
                 }
@@ -141,8 +141,10 @@ void initialiseInterface(std::vector<double> &distributions, std::vector<double>
     flags = std::move(newFlags);
 }
 
-std::vector<double> initialiseMassField(std::vector<flag_t> &flags, const coord_t &length) {
+std::pair<std::vector<double>, std::vector<double>> initialiseMassAndFluidFractionFields(std::vector<flag_t> &flags,
+                                                                                         const coord_t &length) {
     auto mass = std::vector<double>(flags.size());
+    auto fluidFraction = std::vector<double>(flags.size());
 
 // Set mass for empty cells to zero, for fluid cells to the density.
 // Interface cells are generated separately so need no special case.
@@ -152,11 +154,14 @@ std::vector<double> initialiseMassField(std::vector<flag_t> &flags, const coord_
         if (flags[i] == flag_t::FLUID) {
             // Density in first timestep is 1 for fluid cells.
             mass[i] = 1.0;
+            fluidFraction[i] = 1.0;
         } else if (flags[i] == flag_t::INTERFACE) {
             mass[i] = 0.5; // Arbitrary value, doesn't get converted too soon.
+            fluidFraction[i] = 0.5;
         } else {
             mass[i] = 0.0;
+            fluidFraction[i] = 0.0;
         }
     }
-    return mass;
+    return std::pair<std::vector<double>, std::vector<double>>(std::move(mass), std::move(fluidFraction));
 }

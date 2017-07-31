@@ -12,10 +12,9 @@ int neighbouring_fi_cell_index(int x, int y, int z, int fi, const coord_t &lengt
     return indexForCell(new_x, new_y, new_z, length);
 }
 
-void doStreaming(const std::vector<double> &collideField, std::vector<double> &streamField,
-                 const std::vector<double> &mass, std::vector<double> &density,
-                 const coord_t &length, const std::vector<flag_t> &flagField,
-                 std::vector<neighborhood_t> &neighborhood) {
+void doStreaming(const std::vector<double> &collideField, std::vector<double> &streamField, const std::vector<double> &mass,
+                 const coord_t &length, const std::vector<flag_t> &flagField, std::vector<neighborhood_t> &neighborhood,
+                 std::vector<double> &fluidFraction) {
 #pragma omp parallel for schedule(static)
     for (int z = 0; z < length[2] + 2; ++z) {
         for (int y = 0; y < length[1] + 2; ++y) {
@@ -43,7 +42,7 @@ void doStreaming(const std::vector<double> &collideField, std::vector<double> &s
                     const auto coord = coord_t{x, y, z};
                     // Density contains the densities of the previous timestep!
                     const auto normal =
-                        computeSurfaceNormal(collideField, density, flagField, length, mass, coord);
+                            computeSurfaceNormal(fluidFraction, length, mass, coord, flagField);
 
                     bool hasFluidNeighbors = false;
                     bool hasEmptyNeighbors = false;
@@ -75,7 +74,7 @@ void doStreaming(const std::vector<double> &collideField, std::vector<double> &s
                             const double atmosphericPressure = 1.0;
                             // Note that we have to calculate the velocity of the time step before,
                             // hence the choice of distribution field.
-                            const double curDensity = density[flagIndex];
+                            const double curDensity = computeDensity(&collideField[fieldIndex]);
                             std::array<double, 3> velocity;
                             computeVelocity(&collideField[fieldIndex], curDensity, velocity.data());
                             std::array<double, Q> feq;

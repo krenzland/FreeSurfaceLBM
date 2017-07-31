@@ -21,10 +21,10 @@ void initialiseCollideAndStreamFields(std::vector<double> &collideField,
 void initialiseFlagField(std::vector<flag_t> &flagField, std::unique_ptr<Scenario> scenario,
                          boundary_t &boundaryConditions, bool verbose, const coord_t &length);
 
-std::vector<double> initialiseMassField(std::vector<flag_t> &flags, const coord_t &length);
+std::pair<std::vector<double>, std::vector<double>> initialiseMassAndFluidFractionFields(std::vector<flag_t> &flags,
+                                                                                         const coord_t &length);
 
-void initialiseInterface(std::vector<double> &distributions, std::vector<double> &mass,
-                         std::vector<double> &density, const coord_t &length,
-                         std::vector<flag_t> &flags);
+void initialiseInterface(std::vector<double> &distributions, std::vector<double> &mass, std::vector<double> &fluidFraction,
+                         const coord_t &length, std::vector<flag_t> &flags);
 
 #endif

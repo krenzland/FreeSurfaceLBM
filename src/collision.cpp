@@ -11,10 +11,9 @@ void computePostCollisionDistributions(double *currentCell, double tau, const do
     }
 }
 
-void doCollision(std::vector<double> &distributions, std::vector<double> &mass,
-                 std::vector<double> &density, const std::vector<flag_t> &flagField,
-                 double smagorinskyConstant, const std::array<double, 3> &gravity,
-                 const coord_t &length, double tau) {
+void doCollision(std::vector<double> &distributions, std::vector<double> &mass, std::vector<double> &fluidFraction,
+                 double smagorinskyConstant, const std::array<double, 3> &gravity, const coord_t &length, double tau,
+                 const std::vector<flag_t> &flagField) {
 #pragma omp parallel for
     for (int z = 0; z < length[2] + 2; ++z) {
         double curDensity = 0;
@@ -55,8 +54,9 @@ void doCollision(std::vector<double> &distributions, std::vector<double> &mass,
                 // Set mass equal to density to avoid numerical instabilities.
                 if (flagField[flagIndex] == flag_t::FLUID) {
                     mass[flagIndex] = curDensity;
+                } else {
+                    fluidFraction[flagIndex] = mass[flagIndex]/curDensity;
                 }
-                density[flagIndex] = curDensity;
             }
         }
     }

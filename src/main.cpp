@@ -38,16 +38,16 @@ int main(int argc, char *argv[]) {
     auto collideField = std::vector<double>(num_cells * Q);
     auto streamField = std::vector<double>(num_cells * Q);
     auto flagField = std::vector<flag_t>(num_cells, flag_t::FLUID);
-    auto density = std::vector<double>(num_cells, 1.0);
     auto neighborhood = std::vector<neighborhood_t>(num_cells, neighborhood_t::STANDARD);
 
     initialiseCollideAndStreamFields(collideField, streamField);
     initialiseFlagField(flagField, std::move(scenario), boundaryConditions, verbose, length);
-    auto mass = initialiseMassField(flagField, length);
-    initialiseInterface(streamField, mass, density, length, flagField);
+    std::vector<double> mass, fluidFraction;
+    std::tie(mass, fluidFraction) = initialiseMassAndFluidFractionFields(flagField, length);
+    initialiseInterface(streamField, mass, fluidFraction, length, flagField);
 
     auto writer = VtkWriter("results/output", length);
-    writer.write(collideField, mass, density, flagField, stepSize, 0);
+    writer.write(collideField, mass, flagField, stepSize, 0, fluidFraction);
 
     int realTimeSteps = 0;
     double lastOutput = 0.0;
@@ -58,19 +58,19 @@ int main(int argc, char *argv[]) {
     for (double t = 1; t < timesteps; t += stepSize) {
         realTimeSteps++;
 
-        doStreaming(collideField, streamField, mass, density, length, flagField, neighborhood);
-        streamMass(collideField, density, flagField, length, mass, neighborhood);
+        doStreaming(collideField, streamField, mass, length, flagField, neighborhood,
+                    fluidFraction);
+        streamMass(collideField, fluidFraction, length, mass, neighborhood, flagField);
         std::swap(collideField, streamField);
-        doCollision(collideField, mass, density, flagField, smagorinskyConstant, gravity, length,
-                    tau);
-        getPotentialUpdates(mass, density, length, flagField, neighborhood);
-        flagReinit(collideField, mass, density, length, flagField);
-        distributeMass(collideField, mass, density, length, flagField);
+        doCollision(collideField, mass, fluidFraction, smagorinskyConstant, gravity, length, tau, flagField);
+        getPotentialUpdates(mass, fluidFraction, flagField, neighborhood, length);
+        flagReinit(collideField, mass, fluidFraction, length, flagField);
+        distributeMass(collideField, mass, length, flagField, fluidFraction);
 
         const double stepSizeBefore = stepSize;
         const bool allowIncrease = realTimeSteps > increaseNext;
-        std::tie(tau, stepSize) = adaptTimestep(collideField, density, mass, flagField, gravity,
-                                                stepSize, tau, smagorinskyConstant, allowIncrease);
+        std::tie(tau, stepSize) = adaptTimestep(collideField, fluidFraction, mass, flagField, gravity, stepSize, tau,
+                                                smagorinskyConstant, allowIncrease);
         if (stepSize != stepSizeBefore) {
             std::cout << "It = " << std::setprecision(6) << std::setw(10) << realTimeSteps
                       << " realTime " << std::setw(10) << t << std::setprecision(3)
@@ -88,7 +88,7 @@ int main(int argc, char *argv[]) {
 
         if ((t - lastOutput) > timestepsPerPlotting) {
             lastOutput = t;
-            writer.write(collideField, mass, density, flagField, stepSize, fileNum++);
+            writer.write(collideField, mass, flagField, stepSize, fileNum++, fluidFraction);
         }
     }
 
