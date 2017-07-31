@@ -8,12 +8,14 @@
 #include <bits/unique_ptr.h>
 #include <cassert>
 #include <chrono>
+#include <iomanip>
 
 int main(int argc, char *argv[]) {
     coord_t length;
     int timesteps;
     int timestepsPerPlotting;
     double stepSize = 1.0;
+    double smagorinskyConstant;
     double tau;
     std::array<double, 3> gravity;
     boundary_t boundaryConditions;
@@ -26,8 +28,8 @@ int main(int argc, char *argv[]) {
     // Parse the scenario configuration.
     assert(argc == 2); // 1: parameter file
 
-    readParameters(length, tau, gravity, boundaryConditions, timesteps, timestepsPerPlotting,
-                   scenario, argv[1], verbose);
+    readParameters(length, tau, smagorinskyConstant, boundaryConditions, timesteps,
+                   timestepsPerPlotting, scenario, argv[1], verbose, gravity);
 
     // Surround with ghost/boundary cells.
     const size_t num_cells = (size_t)(length[0] + 2) * (length[1] + 2) * (length[2] + 2);
@@ -50,24 +52,36 @@ int main(int argc, char *argv[]) {
     int realTimeSteps = 0;
     double lastOutput = 0.0;
     int fileNum = 1;
+    // We allow no step size increase after a step size decrease!
+    int increaseDelay = static_cast<int>(std::pow(flagField.size(), 1.0 / 3.0) * 4.0);
+    int increaseNext = 1;
     for (double t = 1; t < timesteps; t += stepSize) {
         realTimeSteps++;
 
         doStreaming(collideField, streamField, mass, density, length, flagField, neighborhood);
         streamMass(collideField, density, flagField, length, mass, neighborhood);
         std::swap(collideField, streamField);
-        doCollision(collideField, mass, density, flagField, tau, gravity, length);
+        doCollision(collideField, mass, density, flagField, smagorinskyConstant, gravity, length,
+                    tau);
         getPotentialUpdates(mass, density, length, flagField, neighborhood);
         flagReinit(collideField, mass, density, length, flagField);
         distributeMass(collideField, mass, density, length, flagField);
 
         const double stepSizeBefore = stepSize;
-        // TODO: Use a delay for increasing (maybe).
-        std::tie(tau, stepSize) =
-            adaptTimestep(collideField, density, mass, flagField, tau, stepSize, gravity);
+        const bool allowIncrease = realTimeSteps > increaseNext;
+        std::tie(tau, stepSize) = adaptTimestep(collideField, density, mass, flagField, gravity,
+                                                stepSize, tau, smagorinskyConstant, allowIncrease);
         if (stepSize != stepSizeBefore) {
-            std::cout << "It = " << realTimeSteps << " stepSize = " << stepSize << " tau = " << tau
-                      << std::endl;
+            std::cout << "It = " << std::setprecision(6) << std::setw(10) << realTimeSteps
+                      << " realTime " << std::setw(10) << t << std::setprecision(3)
+                      << " changed to stepSize = " << std::setw(10) << stepSize
+                      << " and tau = " << std::setw(10) << tau << std::endl;
+        }
+        if (stepSize < stepSizeBefore) {
+            // Just decreased step size. Don't increase during the next few iterations.
+            // This is done to avoid a heavily oscillating step size while preserving the safety
+            // guarantees.
+            increaseNext = realTimeSteps + increaseDelay;
         }
 
         treatBoundary(collideField, flagField, boundaryConditions, length);
@@ -75,7 +89,6 @@ int main(int argc, char *argv[]) {
         if ((t - lastOutput) > timestepsPerPlotting) {
             lastOutput = t;
             writer.write(collideField, mass, density, flagField, stepSize, fileNum++);
-//            writer.writeMass(mass, fileNum++);
         }
     }
 

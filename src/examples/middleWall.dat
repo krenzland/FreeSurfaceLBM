@@ -6,6 +6,7 @@ zlength                         60
 timesteps                       2000
 timestepsPerPlotting            10
 tau                             0.67
+smagorinskyConstant		0.0
 
 # Boundary Conditions
 bcLeft                          NO_SLIP

@@ -1,9 +1,12 @@
 #include "timeStep.hpp"
+#include <iostream>
 
 std::pair<double, double> adaptTimestep(std::vector<double> &distributions,
                                         std::vector<double> &density, std::vector<double> &mass,
-                                        std::vector<flag_t> &flags, double oldTau,
-                                        double oldTimeStep, std::array<double, 3> &gravitation) {
+                                        std::vector<flag_t> &flags,
+                                        std::array<double, 3> &gravitation, double oldTimeStep,
+                                        double oldTau, double smagorinskyConstant,
+                                        bool allowIncrease) {
     // We resize the timestep if the maximum velocity is too large.
     double maximumVelocityNorm = 0.0;
 
@@ -30,7 +33,7 @@ std::pair<double, double> adaptTimestep(std::vector<double> &distributions,
     if (maximumVelocityNorm > upperLimit) {
         // Decrease time step
         newTimeStep *= multiplier;
-    } else if (maximumVelocityNorm < lowerLimit) {
+    } else if (maximumVelocityNorm < lowerLimit && allowIncrease) {
         // Increase time step
         newTimeStep /= multiplier;
     } else {
@@ -39,9 +42,16 @@ std::pair<double, double> adaptTimestep(std::vector<double> &distributions,
     }
     const double timeRatio = newTimeStep / oldTimeStep;
     const double newTau = timeRatio * (oldTau - 0.5) + 0.5;
-    const double tauRatio = timeRatio * ((1.0 / oldTau) / (1.0 / newTau));
-    if (newTau < (1.0 / 1.99) || newTimeStep > 2.0) {
-        // Time step would be too small!
+    double minimumTau;
+    if (smagorinskyConstant > 0.0) {
+        // Use turbulence model.
+        // No minimum time step.
+        minimumTau = 0.0;
+    } else {
+        minimumTau = (1.0) / 1.99;
+    }
+
+    if (newTau < minimumTau || newTimeStep > 2.0) {
         return std::pair<double, double>(oldTau, oldTimeStep);
     }
 
@@ -90,6 +100,21 @@ std::pair<double, double> adaptTimestep(std::vector<double> &distributions,
         computeFeq(oldDensity, oldVelocity.data(), oldFeq.data());
         computeFeq(newDensity, newVelocity.data(), newFeq.data());
 
+        double tauRatio;
+        if (smagorinskyConstant > 0.0) {
+            // Turbulence model -> need to rescale w.r.t. local relaxation time.
+            const double oldStress =
+                computeStressTensor(distributions, oldFeq.data(), static_cast<int>(fieldIndex));
+            const double oldLocalTau =
+                computeLocalRelaxationTime(oldTau, oldStress, smagorinskyConstant);
+            const double newStress =
+                computeStressTensor(distributions, newFeq.data(), static_cast<int>(fieldIndex));
+            const double newLocalTau =
+                computeLocalRelaxationTime(newTau, newStress, smagorinskyConstant);
+            tauRatio = timeRatio * (newLocalTau / oldLocalTau);
+        } else {
+            tauRatio = timeRatio * (newTau / oldTau);
+        }
         for (int j = 0; j < Q; ++j) {
             const double feqRatio = newFeq[j] / oldFeq[j];
             // Rescale off-eq. parts of distributions.

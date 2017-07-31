@@ -18,6 +18,7 @@ bcBack                          NO_SLIP
 # Settings for scenarios
 scenario                        cornerDamBreak
 damSize				            30
+smagorinskyConstant		0.0
 
 velocityWallX                   0.0
 velocityWallY                   0.0

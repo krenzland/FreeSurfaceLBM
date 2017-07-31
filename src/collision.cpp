@@ -1,5 +1,6 @@
 #include "collision.hpp"
 #include "freeSurface.hpp"
+#include <iostream>
 
 void computePostCollisionDistributions(double *currentCell, double tau, const double *const feq) {
 
@@ -11,8 +12,9 @@ void computePostCollisionDistributions(double *currentCell, double tau, const do
 }
 
 void doCollision(std::vector<double> &distributions, std::vector<double> &mass,
-                 std::vector<double> &density, const std::vector<flag_t> &flagField, double tau,
-                 const std::array<double, 3> &gravity, const coord_t &length) {
+                 std::vector<double> &density, const std::vector<flag_t> &flagField,
+                 double smagorinskyConstant, const std::array<double, 3> &gravity,
+                 const coord_t &length, double tau) {
 #pragma omp parallel for
     for (int z = 0; z < length[2] + 2; ++z) {
         double curDensity = 0;
@@ -35,7 +37,18 @@ void doCollision(std::vector<double> &distributions, std::vector<double> &mass,
                     velocity[i] += gravity[i] * tau;
                 }
                 computeFeq(curDensity, velocity, feq);
-                computePostCollisionDistributions(&distributions[distrIndex], tau, feq);
+
+                double localTau;
+                if (smagorinskyConstant > 0) {
+                    // Use turbulence model -> local relaxation time!
+                    const double stressNorm = computeStressTensor(distributions, feq, distrIndex);
+                    localTau = computeLocalRelaxationTime(tau, stressNorm, smagorinskyConstant);
+                } else {
+                    localTau = tau;
+                }
+
+                computeFeq(curDensity, velocity, feq);
+                computePostCollisionDistributions(&distributions[distrIndex], localTau, feq);
 
                 curDensity = computeDensity(&distributions[distrIndex]);
                 // Set mass equal to density to avoid numerical instabilities.

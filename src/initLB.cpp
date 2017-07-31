@@ -4,11 +4,11 @@
 #include "LBMHelper.hpp"
 #include "freeSurface.hpp"
 #include "scenarios/Scenario.hpp"
+#include <scenarios/CornerDamBreak.hpp>
 #include <scenarios/DamBreak.hpp>
 #include <scenarios/FallingDrop.hpp>
-#include <scenarios/OnlyWater.hpp>
-#include <scenarios/CornerDamBreak.hpp>
 #include <scenarios/MiddleWall.hpp>
+#include <scenarios/OnlyWater.hpp>
 
 boundary_t readBoundaryConditions(ConfigParser &config) {
     boundary_t bc;
@@ -31,9 +31,10 @@ boundary_t readBoundaryConditions(ConfigParser &config) {
     return bc;
 }
 
-void readParameters(coord_t &length, double &tau, std::array<double, 3> &gravity,
+void readParameters(coord_t &length, double &tau, double &smagorinskyConstant,
                     boundary_t &boundaryConditions, int &timesteps, int &timestepsPerPlotting,
-                    std::unique_ptr<Scenario> &scenario, char *parameterFile, bool verbose) {
+                    std::unique_ptr<Scenario> &scenario, char *parameterFile, bool verbose,
+                    std::array<double, 3> &gravity) {
     auto config = ConfigParser(std::string(parameterFile), verbose);
 
     length[0] = config.parse<int>("xlength");
@@ -48,6 +49,7 @@ void readParameters(coord_t &length, double &tau, std::array<double, 3> &gravity
     timestepsPerPlotting = config.parse<int>("timestepsPerPlotting");
 
     tau = config.parse<double>("tau");
+    smagorinskyConstant = config.parse<double>("smagorinskyConstant");
 
     auto scenarioName = config.parse<std::string>("scenario");
     if (scenarioName == "onlyWater") {
@@ -56,7 +58,7 @@ void readParameters(coord_t &length, double &tau, std::array<double, 3> &gravity
         scenario = std::make_unique<DamBreak>(config);
     } else if (scenarioName == "fallingDrop") {
         scenario = std::make_unique<FallingDrop>(config);
-    } else if (scenarioName == "cornerDamBreak"){
+    } else if (scenarioName == "cornerDamBreak") {
         scenario = std::make_unique<CornerDamBreak>(config);
     } else if (scenarioName == "middleWall") {
         scenario = std::make_unique<MiddleWall>(config);

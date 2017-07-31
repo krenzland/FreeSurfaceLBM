@@ -1,6 +1,10 @@
 #ifndef _COMPUTECELLVALUES_H_
 #define _COMPUTECELLVALUES_H_
 
+#include "LBDefinitions.hpp"
+#include <array>
+#include <vector>
+
 /** computes the density from the particle distribution functions stored at
  * currentCell. currentCell thus denotes the address of the first particle
  * distribution function of the respective cell. The result is stored in
@@ -18,4 +22,7 @@ void computeVelocity(const double *const currentCell, double density, double *ve
  */
 void computeFeq(double density, const double *const velocity, double *feq);
 
+double computeStressTensor(const std::vector<double> &distributions, double *feq, int cellIndex);
+
+double computeLocalRelaxationTime(double tau, double stressTensorNorm, double smagConstant = 0.03);
 #endif
