@@ -110,12 +110,11 @@ double calculateSE(const std::vector<double> &distributions, const std::vector<f
         (neighborhood[neighFlag] == neighborhood_t::NO_EMPTY_NEIGHBORS &&
          (neighborhood[curFlag] == neighborhood_t::STANDARD ||
           neighborhood[curFlag] == neighborhood_t::NO_FLUID_NEIGHBORS))) {
-        return -distributions[neighCell + curFiIndex];
+        return -distributions[curCell + curFiIndex];
     }
 
     // Otherwise: (neigh == STANDARD && cur = NO_EMPTY) || (neigh = NO_FLUID && (cur = STANDARD ||
     // cur NO_EMPTY)
-    // TODO FIX!
     return distributions[neighCell + inv];
 }
 
