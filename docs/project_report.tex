@@ -7,6 +7,8 @@
 \usepackage{array}
 \usepackage{float}
 \usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{float}
 \begin{document}
 \title{Project CFD--Lab\\ \textit{Free Surface Simulation}}
 \author{\textbf{Group Number : 1}\\Krenz Lukas Reiser Andreas Kouroudis Ioannis \\ \\\textbf{Supervisor}\\Menhorn Friedrich }
@@ -139,7 +141,78 @@ and the modified relaxation time is given according to \eqref{eq:relax}
 \section{Results/Scenario}
 Two simple scenarios were chosen, and as can be seen produced very good physical results.
 \subsection{Dam Breaking}
+The dam breaking was simulated by having a large vertical mass of fluid at the start be released for one side of the geometry.
+\begin{figure}[H]
+\centering
+\begin{subfigure}{0.25\textwidth}
+  \includegraphics[width=1.0\linewidth]{dam/1.png}
+\end{subfigure}%
+\begin{subfigure}{0.25\textwidth}
+  \includegraphics[width=1.0\linewidth]{dam/2.png}
+\end{subfigure}
+\begin{subfigure}{0.25\textwidth}
+  \includegraphics[width=1.0\linewidth]{dam/3.png}
+\end{subfigure}
+\centering
+\begin{subfigure}{0.25\textwidth}
+  \includegraphics[width=1.0\linewidth]{dam/4.png}
+\end{subfigure}%
+\begin{subfigure}{0.25\textwidth}
+  \includegraphics[width=1.0\linewidth]{dam/5.png}
+\end{subfigure}
+\begin{subfigure}{0.25\textwidth}
+  \includegraphics[width=1.0\linewidth]{dam/6.png}
+\end{subfigure}
+\centering
+\begin{subfigure}{0.25\textwidth}
+  \includegraphics[width=1.0\linewidth]{dam/7.png}
+\end{subfigure}%
+\begin{subfigure}{0.25\textwidth}
+  \includegraphics[width=1.0\linewidth]{dam/8.png}
+\end{subfigure}
+\begin{subfigure}{0.25\textwidth}
+  \includegraphics[width=1.0\linewidth]{dam/9.png}
+\end{subfigure}
+\caption{Breaking Dam}
+\label{fig:dam}
+\end{figure}
 \subsection{Falling Drop}
+A drop was left to fall in a pool of stationary water. As can be seen, the results look comparable to other sources and resemble the expected physical behaviour.
+\begin{figure}[H]
+\centering
+\begin{subfigure}{0.25\textwidth}
+  \includegraphics[width=1.0\linewidth]{drop/1.png}
+\end{subfigure}%
+\begin{subfigure}{0.25\textwidth}
+  \includegraphics[width=1.0\linewidth]{drop/2.png}
+\end{subfigure}
+\begin{subfigure}{0.25\textwidth}
+  \includegraphics[width=1.0\linewidth]{drop/3.png}
+\end{subfigure}
+\centering
+\begin{subfigure}{0.25\textwidth}
+  \includegraphics[width=1.0\linewidth]{drop/4.png}
+\end{subfigure}%
+\begin{subfigure}{0.25\textwidth}
+  \includegraphics[width=1.0\linewidth]{drop/5.png}
+\end{subfigure}
+\begin{subfigure}{0.25\textwidth}
+  \includegraphics[width=1.0\linewidth]{drop/6.png}
+\end{subfigure}
+\centering
+\begin{subfigure}{0.25\textwidth}
+  \includegraphics[width=1.0\linewidth]{drop/7.png}
+\end{subfigure}%
+\begin{subfigure}{0.25\textwidth}
+  \includegraphics[width=1.0\linewidth]{drop/8.png}
+\end{subfigure}
+\begin{subfigure}{0.25\textwidth}
+  \includegraphics[width=1.0\linewidth]{drop/9.png}
+\end{subfigure}
+\caption{Falling Drop}
+\label{fig:drop}
+\end{figure}
+
 \bibliographystyle{alpha}
 \bibliography{refs}
 
