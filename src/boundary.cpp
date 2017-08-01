@@ -120,7 +120,6 @@ void singleNoSlip(std::vector<double> &collideField, const std::vector<flag_t> &
                neighCollideIndex % Q == 0); // Make sure they point to the start of a fluid cell.
         collideField[collideIndex + i] = collideField[neighCollideIndex + inv] + acceleration;
         if (flagField[neighFlagIndex] == flag_t::EMPTY) {
-            // TODO: Maybe reconstruct the distributions coming from the empty cell!
             collideField[collideIndex + i] = 0.0;
         }
     }

@@ -59,7 +59,6 @@ std::pair<double, double> adaptTimestep(std::vector<double> &distributions, std:
 
     double totalFluidVolume = 0.0;
     double totalMass = 0.0;
-// TODO: Find out why this leads to an ultra evil race condition!
 //#pragma omp parallel for reduction(+:totalFluidVolume) reduction(+:totalMass)
     for (size_t i = 0; i < flags.size(); ++i) {
         if (flags[i] == flag_t::FLUID) {

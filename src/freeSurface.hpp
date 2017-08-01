@@ -22,7 +22,6 @@ double calculateSE(const std::vector<double> &distributions, const std::vector<f
                    const coord_t &coord, const coord_t &length, const int curFiIndex,
                    const std::vector<neighborhood_t> &neighborhood);
 // Corresponds to section 4.3.
-// TODO: Find better name!
 void getPotentialUpdates(const std::vector<double> &mass, std::vector<double> &fluidFraction, std::vector<flag_t> &flags,
                          std::vector<neighborhood_t> &neighborhood, const coord_t &length);
 void flagReinit(std::vector<double> &distributions, std::vector<double> &mass, std::vector<double> &fluidFraction,
