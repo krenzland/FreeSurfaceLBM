@@ -1,18 +1,16 @@
-# one drop hits another drop :D
-
 # Settings for simulation
-xlength                         40
-ylength                         40
-zlength                         70
+xlength                         50
+ylength                         50
+zlength                         40
 
-timesteps                       2000
+timesteps                       1300
 timestepsPerPlotting            20
-tau                             0.57
+tau                             0.56
 smagorinskyConstant				0.04
 
 # Settings for scenarios
-scenario                        cornerDamBreak
-damSize				            20
+scenario                        multipleDrops
+# drops are hardcoded. please don't change domain dimensions 
 
 # External forces
 gravityX						0.0
@@ -38,5 +36,4 @@ velocityInY                     0.0
 velocityInZ                     0.0
 
 pressureIn                      0.0
-
 
