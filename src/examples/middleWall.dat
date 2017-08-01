@@ -4,9 +4,24 @@ ylength                         40
 zlength                         60
 
 timesteps                       2000
-timestepsPerPlotting            10
+timestepsPerPlotting            20
 tau                             0.67
-smagorinskyConstant		0.0
+smagorinskyConstant				0.0
+
+# Settings for scenarios
+scenario                        middleWall
+wallLength				        30
+
+#ParaView:
+#Threshold filter on cell_type, min/max: 1, opacity: 0.5
+#Contour filter on volumeOfFluid, value: 0.5
+
+# External forces
+gravityX						0.0
+gravityY						0.0
+gravityZ						-0.0007
+
+
 
 # Boundary Conditions
 bcLeft                          NO_SLIP
@@ -15,10 +30,6 @@ bcTop                           NO_SLIP
 bcBottom                        NO_SLIP
 bcFront                         NO_SLIP
 bcBack                          NO_SLIP
-
-# Settings for scenarios
-scenario                        middleWall
-wallLength				        30
 
 velocityWallX                   0.0
 velocityWallY                   0.0
@@ -30,7 +41,4 @@ velocityInZ                     0.0
 
 pressureIn                      0.0
 
-# External forces
-gravityX			0.0
-gravityY			0.0
-gravityZ			-0.0007
+
