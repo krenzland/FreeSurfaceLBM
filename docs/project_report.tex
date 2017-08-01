@@ -16,45 +16,34 @@
 \maketitle
 \section*{Abstract}
 In industry there are many applications that require the simulation of a system of unmixable fluids with vastly different kinematic viscosity, separated by a discrete interface.  This problem is commonly referred to as a free surface flow problem. In effect, the kinematic viscosity difference causes the first fluid, which is usually the industrially relevant one, to exert force on the second one, receiving a negligible reaction in return. The most common configuration of this sort is a liquid-gas system and is frequently encountered in applications such as dam breaking scenarios, material processes and wave simulations.
-
-	In this particular project, the phenomenon is simulated  using a Lattice Boltzmann approach combined with volume of fluid method. To track the interface, the mass streamed in and out of the interface cells is calculated. We consider filled cells to have a volume equal to 1 and empty cells equal to 0. When a cell emptied, all the neighboring fluid cells became interface cells. Equally, when an interface cell was filled, all the neighboring empty cells became interface cells.
-	The program was written in C\texttt{++} utilizing omp parallelization.
+In this particular project, the phenomenon is simulated  using a Lattice Boltzmann approach combined with a volume of fluid method.
         
 \section{Aspects of implementation}
-\subsection{Boundary conditions}
-In addition to the previously implemented boundary conditions (Free slip, No slip, , etc) a new condition was implemented, namely a free surface boundary condition.
-The physical perspective of this condition is that the gas has a far greater kinematic viscosity and is consequently pushed without resistance by the liquid. Further, it is assumed that the gas pressure is atmospheric, which is used in place of density in the equilibrium function($\rho_{A} = 1$).
-If $e_{i}$ from an interface cell points to an empty cell the following distribution is constructed:
-\begin{equation} \label{eq:dist}
-f'_{\hat{i}} (x, t + \Delta t) = f^{eq}_{\hat{i}}(1, \mathbf{u})+f^{eq}_{{i}}(1, \mathbf{u})-f_{i}(\mathbf{x},t)
-\end{equation}
-
-However, constructing these distributions along only one side of the interface would result in a force imbalance. To rectify this, additional distributions have to be reconstructed during the streaming step.
-
-If $\mathbf(n \cdot e_{i})>0$, $f_{i}$ is reconstructed according to equation \eqref{eq:dist}
-
-n is the vector normal to the interface and is computed as the central differences of the fluid fraction between neighboring cells
-\begin{equation} \label{eq:normal}
-  \mathbf{n}=\frac{1}{2}\begin{bmatrix} \varepsilon(x_{j-1,k,l})-\varepsilon(x_{j+1,k,l})\\\varepsilon(x_{j,k-1,l})-\varepsilon(x_{j,k+1,l})
-    \\
-    \varepsilon(x_{j,k,l-1})-\varepsilon(x_{j,k,l+1} ) \end{bmatrix}
-\end{equation}
+The algorithm generally works by keeping track of the mass exchange between cells.
+To do this, we save the mass $m$ for each cell and convert the cells if they are either full or empty.
+Between the filled and empty cells we insert interface cells.
+The program was written in C\texttt{++} utilising OpenMP parallelization.
+We followed the algorithm described in~\cite{thurey2007physically}.
 
 \subsection{Gravity }
-We modify the standard collision process to include the gravity force $\bm{g}$ \eqref{eq:BGK}~\cite{thurey2006optimization}:
-\begin{equation} \label{eq:BGK}
+We modify the standard collision process to include the gravity force $\bm{g}$~\cite{thurey2006optimization}
+\begin{equation}\label{eq:BGK}
 f_{i}(x,t+\Delta t)=(1-\omega)f_{i}^{eq}+\omega f_{i}^{eq}(\rho(\mathbf{x},t),\mathbf{u}(\mathbf{x},t)+\frac{g}{\omega}).
 \end{equation}
-\subsection{Mass exchange}
-In order to keep track of the interface two additional variables have to be stored for each cell, namely mass m and the density $\rho$. The mass exchanged between an interface and a fluid cell  is found directly using their distributions. 
-\begin{equation} \label{eq:fluid-interface}
-\Delta m_{i}(x,t+\Delta t)=f_{\hat{i}}(x+e_{i},t)-f_{i}(x,t)
-\end{equation}
 
-For interface-fluid cell the mass exchange must take into account the interface shared between them. During this step, there might still remain interface cells amidst either fluid or empty cells. These artifacts are corrected using the equation \eqref{eq:intint} in conjucture with the table \ref{table:artifacts}. Since the mass lost from one cell is the mass gained from another, the mass exchange is a symmetric process.
-\begin{equation} \label{eq:intint}
-\Delta m_{i}(x,t+\Delta t)=s_{e} \frac{\varepsilon(x+\Delta t \cdot e_{i},t)+\varepsilon(x,t)}{2}
+\subsection{Mass exchange}
+In order to keep track of the interface, two additional variables have to be stored for each cell, namely the mass $m$ and the fluid fraction $\varepsilon_i = \frac{m_{i}}{\rho_{i}}$.
+The mass exchanged between an interface and a fluid cell can be calculated directly using their distributions
+\begin{equation} \label{eq:fluid-interface}
+\Delta m_{i}(x,t+\Delta t)=f_{\hat{i}}(x+e_{i},t)-f_{i}(x,t),
 \end{equation}
+where $\hat{i}$ is the inverse velocity of $i$.
+For interface--interface mass exchange we must take the fluid fraction of both cells into account.
+\begin{equation} \label{eq:intint}
+\Delta m_{i}(x,t+\Delta t)=s_{e} \frac{\varepsilon(x+\Delta t e_{i},t)+\varepsilon(x,t)}{2}
+\end{equation}
+To avoid ``lonely'' interface cells that have no empty or filled neighbours, we use the appropriate \(s_e\) from table \ref{table:artifacts} in \eqref{eq:intint}.
+Because the mass exchange is a symmetric process, the used scheme is explicitly mass preserving.
 
 \begin{table}[H]
 \centering
@@ -62,86 +51,109 @@ For interface-fluid cell the mass exchange must take into account the interface 
 \begin{tabular}{lllll}
  		&  standard cell at $(x+e_{i})$	& no fluid nb at $(x+e_{i})$     & no empty nb at $(x+e_{i})$    \\
  standard cell at (x)		&$f_{\hat{i}}(x_{nb},t)-f(x,t)$	&  $f_{\hat{i}}(x_{nb},t)$		&$-f_{i}(x,t)$		    \\
- no fluid neighbors at $(x)$	&$-f_{i}(x,t)$			&  $f_{\hat{i}}(x_{nb},t)-f(x,t)$	&$-f_{i}(x,t)$		     \\
- no empty neighbors at $(x)$	&$f_{\hat{i}}(x_{nb},t)$	&  $f_{\hat{i}}(x_{nb},t)$		&$f_{\hat{i}}(x_{nb},t)-f(x,t)$
+ no fluid neighbours at $(x)$	&$-f_{i}(x,t)$			&  $f_{\hat{i}}(x_{nb},t)-f(x,t)$	&$-f_{i}(x,t)$		     \\
+ no empty neighbours at $(x)$	&$f_{\hat{i}}(x_{nb},t)$	&  $f_{\hat{i}}(x_{nb},t)$		&$f_{\hat{i}}(x_{nb},t)-f(x,t)$
 \end{tabular}
-\caption{\label{table:artifacts}Interface--Interface mass streaming coefficient $s_{e}$ }
+\caption{\label{table:artifacts}Interface--Interface mass streaming coefficient $s_{e}$ with $x_b$ as the neighbouring cell.}
 \end{table}
 
-\subsection{Flag Update}
-After the mass calculation step, all the interface cells that have a density higher than 1 are assigned a temporal flag as Fluid cells, and their surrounding Empty cells become interface. Following the same principle, all previously interface cells with mass lesser or equal to zero become empty cells, and their surrounding fluid cells recieve a temporal interface cell flag. The temporal flag serves to make the update order independent. As the former empty cells become interface they are initialised with the average density and velocity of their surrounding cells, excluding empty ones, which would otherwise be included if the update was made at this point. In practice, to avoid constant emptying and filling of cells when they are close to changing their state, a tolerated offset is introduced, transforming the criterion in the following fashion.
+\subsection{Boundary conditions}
+Because interface cells have empty cells as neighbours, they do not have a full set of distributions.
+This is why we need to reconstruct all distributions coming from empty cells during the streaming step.
+The physical perspective of this condition is that the gas has a far greater kinematic viscosity and is consequently pushed without resistance by the liquid.
+Further, it is assumed that the gas pressure is atmospheric, which is used in place of density in the equilibrium function($\rho_{A} = 1$).
+If $e_{i}$ comes from an empty cell into a interface cell the following distribution is constructed:
+\begin{equation} \label{eq:dist}
+f'_{\hat{i}} (x, t + \Delta t) = f^{eq}_{\hat{i}}(\rho_A, \mathbf{u})+f^{eq}_{{i}}(\rho_A, \mathbf{u})-f_{i}(\mathbf{x},t).
+\end{equation}
 
+However, constructing these distributions along only one side of the interface would result in a force imbalance.
+To rectify this, we additionally reconstruct distributions coming in along the surface normal, which we approximate by central differences
+\begin{equation} \label{eq:normal}
+  \mathbf{n}=\frac{1}{2}\begin{bmatrix} \varepsilon(x_{j-1,k,l})-\varepsilon(x_{j+1,k,l})\\\varepsilon(x_{j,k-1,l})-\varepsilon(x_{j,k+1,l})
+    \\
+    \varepsilon(x_{j,k,l-1})-\varepsilon(x_{j,k,l+1} ) \end{bmatrix},
+\end{equation}
+where $\varepsilon(x_{j,k,l})$ is the fluid fraction of the cell at coordinates $(j,k,l)$.
+If $\mathbf(n \cdot e_{i})>0$, $f_{i}$ is reconstructed according to equation \eqref{eq:dist}
+
+
+\subsection{Flag Update}
+After the mass calculation step, all the interface cells that have filled or emptied are assigned temporary flag as filled or emptied cells respectively.
+To determine this, the criterion
 \begin{equation} \label{eq:filled}
-M(x,t+ \Delta t)>(1+ \text{offset }) \cdot \rho(x,t+\Delta t)
+m(x,t+ \Delta t)>(1+ \text{offset }) \cdot \rho(x,t+\Delta t),
 \end{equation}
 \begin{equation} \label{eq:empty}
-M(x,t+ \Delta t)<(0- \text{offset }) \cdot \rho(x,t+\Delta t)
+m(x,t+ \Delta t)<(0- \text{offset }) \cdot \rho(x,t+\Delta t),
 \end{equation}
-In this case the used offset was $10^{-3}$~\cite{thurey2007physically}. Formerly empty cells that become interface cells are initialised with the average density and velocity of their surrounding cells.
+is used, with an offset of $10^{-3}$, to avoid oscillating changes of a cell status~\cite{thurey2007physically}.
+
+We then convert all empty neighbours of filled cells to interface cells and all neighbouring emptied cells back to interface cells.
+After this is done, all fluid neighbours of emptied cells are converted to interface cells.
+Formerly empty cells that became interface cells are initialised with the average density and velocity of their fluid, interface and filled neighbours.
+We need to use temporary flags because otherwise the update rule would be order dependent.
+
 \subsection{Excess Mass }
-
-After the flagfield has been updated, excess or negative mass issues are tackled. All newly empty or filled cells possibly have mass greater than 1 or lesser than 0. This is corrected by distributing or taking mass from the nearby interface cells. The distribution is weighted according to the relative position of the cell direction to the normal vector of the current cell. Specifically:
+Newly converted cells have an excess mass $m^{\text{ex}}$.
+Fluid cells should have mass equal to their density, empty cells should have mass zero.
+All excess mass is distributed to all interface neighbours.
+For reasons of stability, we weigh the update according to the position of the current interface
 \begin{equation} \label{eq:exmass}
-\Delta m(x+e_{i})=m^{\text{ex}}\frac{v_{i}}{v_{\text{total}}}
+\Delta m(x+e_{i})=m^{\text{ex}}\frac{v_{i}}{v_{\text{total}}},
 \end{equation}
-Where $v_{\text{total}}$ is the sum of all weights and $v_{i}$ is the weight of the neighboring cell calculated as follows:
+where $v_{i}$ is the weight of the neighbouring cell and $v_{\text{total}}$ is the sum of all weights.
+The weighs are calculated by
+\begin{align}
+  \label{eq:excessMassWeights}
+ v_i^f &=  \max(0, \bm{n} \cdot \bm{e_i}),\\
+ v_i^e &= - \min(0, \bm{n} \cdot \bm{e_i}),
+\end{align}
+for filled and emptied cells respectively.
 
-for filled cells:
-\begin{equation} \label{eq:filledweight}
-  v_i = 
-  \begin{cases}
-    \mathbf{n \cdot e_{i}}     & \quad \text{if }  \text{$\mathbf{n \cdot e_{i}}>0$}\\
-    0			 & \quad \text{if }  \text{otherwise}\\
-  \end{cases}
-\end{equation}
+Again it is important to update the mass of all cells at the same time.
+After the excess mass has been distributed, all flags are converted from the temporary to the finalised ones.
 
-for empty cells
-\begin{equation} \label{eq:emptyweight}
-  v_i = 
-  \begin{cases}
-    -\mathbf{n \cdot e_{i}}     & \quad \text{if }  \text{$\mathbf{n \cdot e_{i}}<0$}\\
-    0			  & \quad \text{if }  \text{otherwise}\\
-  \end{cases}
-\end{equation}
+\subsection{Adaptive time step and turbulence model}
+To avoid instabilities due to high velocities and to acquire speedup during periods of rest we use an adaptive time step.
+We use a critical velocity of $u_\text{crit} = 1/6$, which is half the lattice speed of sound.
+If velocities become larger than $1/3$ distributions can become negative thus impacting the stability.
 
-\subsection{Adaptive time step and turbulent model}
-
-To avoid instabilities and to acquire speedup during periods of rest an adaptive time step was used. If $|u_{max}|>\frac{5}{24}$ the new timestep becomes $\Delta t_{n}=\frac{4}{5} \cdot \Delta t_{old}$
-Consequently, all time related quantities must be updated as well to keep the particle distributions inside either the current or the neigbouring cells over the course of one time iteration. This is done according to the following equations:
-\begin{equation} \label{eq:dt}
-s=\frac{\Delta t_{n}}{\Delta t_{o}}
-\end{equation}
+To do this, we calculate the maximum velocity $u_{\text{max}}$ of the simulation and modify the time step if needed.
+If $ \Vert u_{max} \Vert > \xi u_{\text{crit}}$ the new timestep becomes $\Delta t_{\text{new}}= \xi \Delta t_{\text{old}}$ and if 
+$\Vert u_{max} \Vert < \xi u_\text{crit}$ the new timestep is updated to $\Delta t_{\text{new}} = \Delta t_{\text{old}} / \xi$,
+where $\xi = 4/5$ is the rescaling factor~\cite{thurey2005interactive}.
+The timestep is used to compute a new value of the relaxation parameter $\tau$
 \begin{equation} \label{eq:omega}
-\omega=\frac{1}{s(\frac{1}{\omega_{o}}-\frac{1}{2})+\frac{1}{2}}
+\tau_{\text{new}}= \frac{\Delta t_{\text{new}}}{\Delta t_{\text{old}}} (\tau_{\text{old}}- 0.5) +0.5
 \end{equation}
-\begin{equation} \label{eq:density}
-\rho_{n}=s(\rho_{o}-\rho_{\text{med}})+\rho_{\text{med}}
-\end{equation}
-\begin{equation} \label{eq:velocity}
-u_{n}=su_{o}
-\end{equation}
-\begin{equation} \label{eq:gravity}
-g=s^{2} \cdot g_{o}
-\end{equation}
+which is then used in the collision process.
 
-Time steps can also increase in periods of relative calmness.If $|u_{max}|<\frac{1}{6} \frac{5}{4}$ the resize factor is $\frac{5}{4}$. The logic behind $\frac{1}{6}$ is that it is half the speed of sound. If a velocity increases beyond this threshold, $f^{eq}$ will become negative.
-If $\omega<1.99$, as this will cause negative equilibrium distributions and numerical instabilities. Some of the simulated scenarios generated a high degree of turbulence and quickly became unstable. To rectify this, a turbulence model was introduced. The local stress tensor is computed and subsequently used to modify the relaxation time according to the eddy viscosity. The Smagorinsky constant C is set to 0.03~\cite{thurey2007physically}. The non equilibrium stress tensor $\Pi_{\alpha\beta}$ is computed according to the equation \eqref{eq:stress}
+After each time step change, all time dependent values must be rescaled, e.g.~density, mass, velocity and gravity.
+Additionally all distributions must be rescaled.
+The details of the rescaling procedure are omitted to preserve space, the interested reader is referred to chapter 6 of~\cite{thurey2007physically}.
 
+For very small time steps or viscosities, $\tau$ is close to $0.5$, thus leading to instabilities in the simulation.
+To rectify this, we use a Smagorinsky turbulence model.
+For this we calculate the local stress tensor $S$ by
 \begin{equation} \label{eq:stress}
-\Pi_{\alpha,\beta}=\sum^{19}_{i=1}e_{i\alpha}e_{i\beta}(f_{i}-f_{i}^{eq})
+\Pi_{\alpha,\beta}=\sum^{19}_{i=1}e_{i\alpha}e_{i\beta}(f_{i}-f_{i}^{eq}),
 \end{equation}
-where $\alpha$ and $\beta$ run over the three spatial direction
- The intensity of the local stress tensor S is computed as 
+where $\alpha$ and $\beta$ are the components of the lattice velocities.
+ The intensity $S$ is then given by 
 \begin{equation} \label{eq:intensity}
-S=\frac{1}{6C^{2}}(\sqrt{\nu^{2}+18C^{2}\sqrt{\sum^{3}_{\alpha=1}\sum^{3}_{\beta=1}\Pi_{\alpha,\beta}^{2}}-\nu}
+S=\frac{1}{6C^{2}}(\sqrt{\nu^{2}+18C^{2}\sqrt{\Pi_{\alpha,\beta} \Pi_{\alpha,\beta}}-\nu},
 \end{equation}
-and the modified relaxation time is given according to \eqref{eq:relax}
-
+where summation over $\alpha$ and $\beta$ is implied and $C$ is a constant usually set to values close to $0.03$~\cite{thurey2007physically}.
+Finally we set the local relaxation time to
 \begin{equation} \label{eq:relax}
-\tau_s=3(\nu+C^{2}S)+\frac{1}{2}
+\tau_s=3(\nu+C^{2}S)+\frac{1}{2},
 \end{equation}
+where $\nu$ is the global viscosity.
+Intuitively, the turbulence model increases the local viscosity for cells according to the stress exerted onto them.
+
 \section{Results/Scenario}
-Two simple scenarios were chosen, and as can be seen produced very good physical results.
+Two simple scenarios were chosen, and as can be seen, produced very good physical results.
 \subsection{Dam Breaking}
 The dam breaking was simulated by having a large vertical mass of fluid at the start be released for one side of the geometry.
 \begin{figure}[H]
