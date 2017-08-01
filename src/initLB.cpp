@@ -9,6 +9,7 @@
 #include <scenarios/FallingDrop.hpp>
 #include <scenarios/MiddleWall.hpp>
 #include <scenarios/OnlyWater.hpp>
+#include <scenarios/MultipleDrops.hpp>
 
 boundary_t readBoundaryConditions(ConfigParser &config) {
     boundary_t bc;
@@ -62,6 +63,8 @@ void readParameters(coord_t &length, double &tau, double &smagorinskyConstant,
         scenario = std::make_unique<CornerDamBreak>(config);
     } else if (scenarioName == "middleWall") {
         scenario = std::make_unique<MiddleWall>(config);
+    } else if (scenarioName == "multipleDrops") {
+        scenario = std::make_unique<MultipleDrops>(config);
     } else {
         throw std::invalid_argument("Invalid scenario!");
     }

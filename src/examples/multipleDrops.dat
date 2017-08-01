@@ -1,0 +1,39 @@
+# Settings for simulation
+xlength                         50
+ylength                         50
+zlength                         40
+
+timesteps                       1300
+timestepsPerPlotting            20
+tau                             0.56
+smagorinskyConstant				0.04
+
+# Settings for scenarios
+scenario                        multipleDrops
+# drops are hardcoded. please don't change domain dimensions 
+
+# External forces
+gravityX						0.0
+gravityY						0.0
+gravityZ						-0.0007
+
+
+
+# Boundary Conditions
+bcLeft                          NO_SLIP
+bcRight                         NO_SLIP
+bcTop                           NO_SLIP
+bcBottom                        NO_SLIP
+bcFront                         NO_SLIP
+bcBack                          NO_SLIP
+
+velocityWallX                   0.0
+velocityWallY                   0.0
+velocityWallZ                   0.0
+
+velocityInX                     0.0
+velocityInY                     0.0
+velocityInZ                     0.0
+
+pressureIn                      0.0
+
