@@ -3,9 +3,9 @@ xlength                         40
 ylength                         40
 zlength                         60
 
-timesteps                       4000
+timesteps                       6000
 timestepsPerPlotting            20
-tau                             0.57
+tau                             0.58
 smagorinskyConstant				0.04
 
 # Settings for scenarios
