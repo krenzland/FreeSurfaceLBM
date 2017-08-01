@@ -1,21 +1,23 @@
+# one drop hits another drop :D
+
 # Settings for simulation
 xlength                         40
 ylength                         40
-zlength                         60
+zlength                         70
 
-timesteps                       2500
+timesteps                       2000
 timestepsPerPlotting            20
 tau                             0.57
-smagorinskyConstant				0.0
+smagorinskyConstant				0.004
 
 # Settings for scenarios
 scenario                        cornerDamBreak
 damSize				            20
 
 # External forces
-gravityX			0.0
-gravityY			0.0
-gravityZ			-0.0007
+gravityX						0.0
+gravityY						0.0
+gravityZ						-0.0007
 
 
 

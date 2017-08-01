@@ -8,8 +8,6 @@
 MiddleWall::MiddleWall(ConfigParser &config) { wallLength = config.parse<int>("wallLength"); }
 
 void MiddleWall::getFlagField(std::vector<flag_t> &flags, const coord_t &length) {
-    //wall in the middle
-
     int yCoordWall = length[1] / 2;
 
     for (int z = 1; z < length[2] + 1; ++z) {
