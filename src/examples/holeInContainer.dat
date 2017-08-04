@@ -3,7 +3,7 @@ xlength                         40
 ylength                         40
 zlength                         60
 
-timesteps                       6000
+timesteps                       3500
 timestepsPerPlotting            20
 tau                             0.58
 smagorinskyConstant				0.04
