@@ -1,16 +1,16 @@
 # Settings for simulation
-xlength                         40
-ylength                         40
-zlength                         40
+xlength                         120
+ylength                         60
+zlength                         60
 
-timesteps                       2000
+timesteps                       4000
 timestepsPerPlotting            20
-tau                             0.65
-smagorinskyConstant				0.00
+tau                             0.66
+smagorinskyConstant				0.04
 
 # Settings for scenarios
 scenario                        damBreak
-damSize							20
+damSize							30
 
 # External forces
 gravityX						0.0
